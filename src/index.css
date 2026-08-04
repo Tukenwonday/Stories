@@ -1,0 +1,84 @@
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #121212;
+  --color-surface: #1e1e1e;
+  --color-surface-2: #242424;
+  --color-border: #27272a;
+  --color-gold: #c5a059;
+  --color-gold-soft: #d4af37;
+  --color-foreground: #ffffff;
+  --color-muted: #a1a1aa;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-arabic: "Noto Kufi Arabic", "Inter", sans-serif;
+
+  --radius: 1rem;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  background-color: var(--color-bg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* RTL typography */
+[dir="rtl"] body,
+[dir="rtl"] .font-sans {
+  font-family: var(--font-arabic);
+}
+
+/* Hide scrollbars on the category rail while keeping scroll */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Bottom sheet + cart animations */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-sheet {
+  animation: sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.animate-fade {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* Safe area padding for iOS notch/home indicator */
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+}
+.pt-safe {
+  padding-top: calc(env(safe-area-inset-top) + 0.5rem);
+}

@@ -1,0 +1,64 @@
+{
+  "tables": [
+    {
+      "table": 1,
+      "token": "2973e27c-614a-4fdd-86fd-75215ab3bd3f"
+    },
+    {
+      "table": 2,
+      "token": "bba70a75-2396-497c-a44f-d1164eb8ae37"
+    },
+    {
+      "table": 3,
+      "token": "69167c2e-1167-47d8-84b7-df35649fe0ec"
+    },
+    {
+      "table": 4,
+      "token": "0d565f13-93ef-424b-bf5d-dcd9b678b5f9"
+    },
+    {
+      "table": 5,
+      "token": "6b9fdaf9-08e9-4dae-9df6-4e7222e18a4e"
+    },
+    {
+      "table": 6,
+      "token": "9fa109ca-b5d8-449b-9011-23fafe8a0404"
+    },
+    {
+      "table": 7,
+      "token": "3b851ee2-8179-400a-b83a-41f7caaf6816"
+    },
+    {
+      "table": 8,
+      "token": "08f6bc32-bc0e-46cc-bd8e-140be45e4a31"
+    },
+    {
+      "table": 9,
+      "token": "1a46f12c-907e-41d8-9a3a-652298790f84"
+    },
+    {
+      "table": 10,
+      "token": "98f03dd1-d527-431f-9b45-cc3f18fd51a7"
+    },
+    {
+      "table": 11,
+      "token": "9e6742bb-90b8-46a0-afcc-ec94387f9698"
+    },
+    {
+      "table": 12,
+      "token": "626a2c46-25f3-4da6-8b74-132b502ea34c"
+    },
+    {
+      "table": 13,
+      "token": "1d920cd7-4e9a-4fcb-aa7b-1f8acfad09b6"
+    },
+    {
+      "table": 14,
+      "token": "5bfc697e-fddb-40e6-bb2c-0d20cded5c9c"
+    },
+    {
+      "table": 15,
+      "token": "6e3c3b14-831a-4373-ba28-72845671dc1e"
+    }
+  ]
+}
