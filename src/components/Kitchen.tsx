@@ -224,90 +224,77 @@ export default function Kitchen() {
           ) : orders.length === 0 ? (
             <p className="py-20 text-center text-sm text-muted">{t("noOrders")}</p>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <ol className="divide-y divide-border">
               {orders.map((o) => {
                 const isNew = now - new Date(o.created_at).getTime() < 60000
-                const itemCount = o.items.reduce((n, it) => n + it.quantity, 0)
                 return (
-                  <div
+                  <li
                     key={o.id}
                     className={
-                      "flex flex-col overflow-hidden rounded-2xl border bg-surface " +
-                      (isNew ? "border-gold/60 shadow-lg shadow-gold/10" : "border-border")
+                      "py-5 " + (isNew ? "rounded-xl bg-gold/5 px-3 shadow-inner shadow-gold/10" : "")
                     }
                   >
-                    {/* Header */}
-                    <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-2/60 px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-gold/30 bg-gold/10 text-base font-extrabold text-gold">
+                    <div className="flex items-start justify-between gap-4">
+                      {/* Table number */}
+                      <div className="flex shrink-0 flex-col items-center">
+                        <span className="text-3xl font-extrabold leading-none text-gold">
                           {o.table_number}
                         </span>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-bold text-foreground">
-                            {o.customer_name || t("table")}
-                          </div>
-                          <div className="text-[11px] text-muted">
-                            {new Date(o.created_at).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                      {isNew && (
-                        <span className="shrink-0 rounded-full border border-gold/40 bg-gold/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-gold">
-                          {t("newOrder")}
+                        <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
+                          {t("table")}
                         </span>
-                      )}
-                    </div>
-
-                    {/* Notes */}
-                    {o.notes && (
-                      <div className="border-b border-gold/15 bg-gold/5 px-4 py-2.5">
-                        <p className="text-sm leading-relaxed text-gold">
-                          <span className="font-bold">{t("notes")}: </span>
-                          {o.notes}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Items */}
-                    <ul className="flex-1 divide-y divide-border/60 px-4">
-                      {o.items.map((it, i) => (
-                        <li key={i} className="flex items-start justify-between gap-3 py-2.5">
-                          <div className="min-w-0">
-                            <div className="flex items-baseline gap-2">
-                              <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-surface-2 px-1 text-xs font-bold text-foreground">
-                                {it.quantity}
-                              </span>
-                              <span className="text-sm font-semibold text-foreground">
-                                {it.title}
-                              </span>
-                            </div>
-                            {it.modifiers.length > 0 && (
-                              <p className="mt-1 ps-8 text-[11px] text-muted">
-                                {it.modifiers.map((m) => m.option).join(" · ")}
-                              </p>
-                            )}
-                          </div>
-                          <span className="shrink-0 text-sm font-semibold text-foreground">
-                            {it.unitPrice * it.quantity}
+                        {isNew && (
+                          <span className="mt-1.5 rounded-full border border-gold/50 bg-gold/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-gold">
+                            {t("newOrder")}
                           </span>
-                        </li>
-                      ))}
-                    </ul>
+                        )}
+                      </div>
 
-                    {/* Footer */}
-                    <div className="flex items-center justify-between border-t border-border bg-surface-2/60 px-4 py-3">
-                      <span className="text-[11px] font-medium text-muted">
-                        {itemCount} {t("items")}
-                      </span>
-                      <span className="text-lg font-extrabold text-gold">{o.total}</span>
+                      {/* Items + notes */}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] text-muted">
+                          {new Date(o.created_at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
+
+                        <ul className="mt-2">
+                          {o.items.map((it, i) => (
+                            <li key={i} className="flex items-start justify-between gap-3 py-1">
+                              <div className="min-w-0">
+                                <span className="text-sm font-semibold text-foreground">
+                                  {it.quantity}× {it.title}
+                                </span>
+                                {it.modifiers.length > 0 && (
+                                  <span className="ms-2 text-[11px] text-muted">
+                                    {it.modifiers.map((m) => m.option).join(" · ")}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="shrink-0 text-sm font-semibold text-foreground">
+                                {it.unitPrice * it.quantity}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+
+                        {o.notes && (
+                          <p className="mt-2 border-s-2 border-gold ps-3 text-sm leading-relaxed text-gold">
+                            {o.notes}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Total */}
+                      <div className="shrink-0">
+                        <span className="text-xl font-extrabold text-foreground">{o.total}</span>
+                      </div>
                     </div>
-                  </div>
+                  </li>
                 )
               })}
-            </div>
+            </ol>
           )}
         </main>
       </div>
