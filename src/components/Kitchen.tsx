@@ -82,10 +82,33 @@ export default function Kitchen() {
   }, [])
 
   useEffect(() => {
-    if (!authed) return
+    const client = supabase
+    if (!authed || !client) return
     load()
-    const id = setInterval(load, 8000)
-    return () => clearInterval(id)
+
+    const channel = client
+      .channel("kitchen-orders")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders" },
+        (payload) => {
+          const row = payload.new as KitchenOrder
+          setOrders((prev) => [row, ...prev.filter((o) => o.id !== row.id)].slice(0, 50))
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders" },
+        (payload) => {
+          const row = payload.new as KitchenOrder
+          setOrders((prev) => prev.map((o) => (o.id === row.id ? row : o)))
+        },
+      )
+      .subscribe()
+
+    return () => {
+      client.removeChannel(channel)
+    }
   }, [authed, load])
 
   if (!authed) {
