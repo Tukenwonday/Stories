@@ -18,6 +18,7 @@ export default function CartSheet({
 
   const [name, setName] = useState("")
   const [nameError, setNameError] = useState(false)
+  const [notes, setNotes] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [placed, setPlaced] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -30,7 +31,7 @@ export default function CartSheet({
     setSubmitting(true)
     setServerError(null)
 
-    const payload = buildOrderPayload({ tableNumber, customerName: name, lines, total })
+    const payload = buildOrderPayload({ tableNumber, customerName: name, notes, lines, total })
     const res = await submitOrder(payload)
 
     setSubmitting(false)
@@ -180,6 +181,18 @@ export default function CartSheet({
                 }
               />
               {nameError && <p className="mt-1 text-xs text-red-400">{strings.nameError[lang]}</p>}
+
+              {/* Notes */}
+              <label className="mb-1.5 mt-4 block text-sm font-semibold text-foreground">
+                {strings.notes[lang]}
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={strings.notesPlaceholder[lang]}
+                rows={2}
+                className="w-full resize-none rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-gold"
+              />
 
               {/* Payment (cash only) */}
               <div className="mt-4">

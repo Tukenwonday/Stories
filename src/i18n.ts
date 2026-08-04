@@ -32,6 +32,11 @@ export const strings = {
   total: { en: "Total", ar: "الإجمالي" },
   customerName: { en: "Your name", ar: "اسمك" },
   customerNamePlaceholder: { en: "e.g. Sara", ar: "مثال: سارة" },
+  notes: { en: "Notes", ar: "ملاحظات" },
+  notesPlaceholder: {
+    en: "e.g. no onions, extra spicy",
+    ar: "مثال: بدون بصل، حار إضافي",
+  },
   payment: { en: "Payment", ar: "الدفع" },
   payWaiter: { en: "Pay at Table", ar: "الدفع على الطاولة" },
   payWaiterHint: { en: "Cash or card with your waiter", ar: "نقدًا أو ببطاقة مع النادل" },

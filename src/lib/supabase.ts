@@ -18,6 +18,7 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
 export interface OrderPayload {
   table_number: string
   customer_name: string
+  notes: string
   payment_method: "waiter"
   items: Array<{
     itemId: string
@@ -32,12 +33,14 @@ export interface OrderPayload {
 export function buildOrderPayload(args: {
   tableNumber: string
   customerName: string
+  notes: string
   lines: CartLine[]
   total: number
 }): OrderPayload {
   return {
     table_number: args.tableNumber,
     customer_name: args.customerName.trim(),
+    notes: args.notes.trim(),
     payment_method: "waiter",
     total: args.total,
     items: args.lines.map((l) => ({
