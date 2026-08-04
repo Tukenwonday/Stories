@@ -53,10 +53,6 @@ export const strings = {
   chooseOne: { en: "Choose one", ar: "اختر واحدًا" },
   chooseAny: { en: "Choose any", ar: "اختر ما تريد" },
   nameError: { en: "Please enter your name", ar: "الرجاء إدخال اسمك" },
-  demoNote: {
-    en: "Demo mode — connect Supabase to save orders.",
-    ar: "الوضع التجريبي — اربط Supabase لحفظ الطلبات.",
-  },
 } as const
 
 export function t(key: keyof typeof strings, lang: Lang): string {

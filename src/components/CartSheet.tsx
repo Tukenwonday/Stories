@@ -3,7 +3,7 @@ import { Check, Minus, Plus, ShoppingBag, Trash2, Wallet, X } from "lucide-react
 import { useLang } from "../lang-context"
 import { strings } from "../i18n"
 import { useCart } from "../store/cart"
-import { buildOrderPayload, isSupabaseConfigured, submitOrder } from "../lib/supabase"
+import { buildOrderPayload, submitOrder } from "../lib/supabase"
 
 export default function CartSheet({
   tableNumber,
@@ -224,9 +224,6 @@ export default function CartSheet({
               </div>
 
               {serverError && <p className="mt-2 text-xs text-red-400">{serverError}</p>}
-              {!isSupabaseConfigured && (
-                <p className="mt-2 text-center text-[11px] text-muted">{strings.demoNote[lang]}</p>
-              )}
 
               <button
                 type="button"
