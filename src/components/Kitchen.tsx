@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { Check, Clock, Lock, RefreshCw } from "lucide-react"
+import { Clock, Lock, RefreshCw } from "lucide-react"
 import type { Lang } from "../types"
 import { LangContext } from "../lang-context"
 import { supabase } from "../lib/supabase"
@@ -25,12 +25,6 @@ interface KitchenOrder {
   payment_method: string
   items: KitchenOrderItem[]
   total: number
-  status: "pending" | "preparing" | "ready"
-}
-
-const STATUS_NEXT: Record<string, KitchenOrder["status"]> = {
-  pending: "preparing",
-  preparing: "ready",
 }
 
 export default function Kitchen() {
@@ -94,29 +88,6 @@ export default function Kitchen() {
     return () => clearInterval(id)
   }, [authed, load])
 
-  async function advance(o: KitchenOrder) {
-    const next = STATUS_NEXT[o.status]
-    if (!next || !supabase) return
-    const { error: err } = await supabase.from("orders").update({ status: next }).eq("id", o.id)
-    if (err) {
-      console.error("[kitchen] update error:", err.message)
-      return
-    }
-    setOrders((prev) => prev.map((x) => (x.id === o.id ? { ...x, status: next } : x)))
-  }
-
-  const statusLabel: Record<KitchenOrder["status"], string> = {
-    pending: t("pending"),
-    preparing: t("preparing"),
-    ready: t("ready"),
-  }
-
-  const statusClass: Record<KitchenOrder["status"], string> = {
-    pending: "border-gold/40 bg-gold/10 text-gold",
-    preparing: "border-sky-400/40 bg-sky-400/10 text-sky-300",
-    ready: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300",
-  }
-
   if (!authed) {
     return (
       <LangContext.Provider value={{ lang, dir, toggle: () => setLang((l) => (l === "ar" ? "en" : "ar")) }}>
@@ -166,8 +137,6 @@ export default function Kitchen() {
     )
   }
 
-  const pendingCount = orders.filter((o) => o.status === "pending").length
-
   return (
     <LangContext.Provider value={{ lang, dir, toggle: () => setLang((l) => (l === "ar" ? "en" : "ar")) }}>
       <div dir={dir} className="min-h-screen bg-bg font-sans text-foreground">
@@ -189,7 +158,7 @@ export default function Kitchen() {
 
             <div className="flex items-center gap-2">
               <span className="hidden rounded-full border border-gold/40 px-3 py-1 text-xs font-semibold text-gold sm:inline">
-                {pendingCount} {t("orderCount")}
+                {orders.length} {t("orderCount")}
               </span>
               <button
                 type="button"
@@ -232,87 +201,85 @@ export default function Kitchen() {
           ) : orders.length === 0 ? (
             <p className="py-20 text-center text-sm text-muted">{t("noOrders")}</p>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {orders.map((o) => {
                 const isNew = now - new Date(o.created_at).getTime() < 60000
-                const next = STATUS_NEXT[o.status]
+                const itemCount = o.items.reduce((n, it) => n + it.quantity, 0)
                 return (
                   <div
                     key={o.id}
                     className={
-                      "flex flex-col rounded-2xl border bg-surface p-4 " +
-                      (isNew ? "border-gold/60 ring-1 ring-gold/30" : "border-border")
+                      "flex flex-col overflow-hidden rounded-2xl border bg-surface " +
+                      (isNew ? "border-gold/60 shadow-lg shadow-gold/10" : "border-border")
                     }
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <span className="text-3xl font-extrabold tracking-tight text-foreground">
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-2/60 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-gold/30 bg-gold/10 text-base font-extrabold text-gold">
                           {o.table_number}
                         </span>
-                        <span className="ms-2 text-xs font-medium text-muted">{t("table")}</span>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-bold text-foreground">
+                            {o.customer_name || t("table")}
+                          </div>
+                          <div className="text-[11px] text-muted">
+                            {new Date(o.created_at).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </div>
                       </div>
-                      <span
-                        className={
-                          "rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest " +
-                          statusClass[o.status]
-                        }
-                      >
-                        {statusLabel[o.status]}
-                      </span>
+                      {isNew && (
+                        <span className="shrink-0 rounded-full border border-gold/40 bg-gold/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-gold">
+                          {t("newOrder")}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-muted">
-                      <span className="truncate">{o.customer_name}</span>
-                      <span className="shrink-0">
-                        {new Date(o.created_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-
+                    {/* Notes */}
                     {o.notes && (
-                      <p className="mt-2 rounded-lg border border-gold/20 bg-gold/5 px-3 py-2 text-xs leading-relaxed text-gold">
-                        {o.notes}
-                      </p>
+                      <div className="border-b border-gold/15 bg-gold/5 px-4 py-2.5">
+                        <p className="text-sm leading-relaxed text-gold">
+                          <span className="font-bold">{t("notes")}: </span>
+                          {o.notes}
+                        </p>
+                      </div>
                     )}
 
-                    <ul className="mt-3 flex flex-1 flex-col gap-1.5">
+                    {/* Items */}
+                    <ul className="flex-1 divide-y divide-border/60 px-4">
                       {o.items.map((it, i) => (
-                        <li key={i} className="flex items-baseline justify-between gap-2 text-sm">
-                          <span className="min-w-0">
-                            <span className="font-semibold text-foreground">
-                              {it.quantity}× {it.title}
-                            </span>
-                            {it.modifiers.length > 0 && (
-                              <span className="block text-[11px] text-muted">
-                                {it.modifiers.map((m) => m.option).join(" · ")}
+                        <li key={i} className="flex items-start justify-between gap-3 py-2.5">
+                          <div className="min-w-0">
+                            <div className="flex items-baseline gap-2">
+                              <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-md bg-surface-2 px-1 text-xs font-bold text-foreground">
+                                {it.quantity}
                               </span>
+                              <span className="text-sm font-semibold text-foreground">
+                                {it.title}
+                              </span>
+                            </div>
+                            {it.modifiers.length > 0 && (
+                              <p className="mt-1 ps-8 text-[11px] text-muted">
+                                {it.modifiers.map((m) => m.option).join(" · ")}
+                              </p>
                             )}
-                          </span>
-                          <span className="shrink-0 text-xs font-semibold text-gold">
+                          </div>
+                          <span className="shrink-0 text-sm font-semibold text-foreground">
                             {it.unitPrice * it.quantity}
                           </span>
                         </li>
                       ))}
                     </ul>
 
-                    <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
-                      <span className="text-sm font-extrabold text-gold">{o.total}</span>
-                      {next ? (
-                        <button
-                          type="button"
-                          onClick={() => advance(o)}
-                          className="rounded-full bg-gold px-4 py-2 text-xs font-bold text-bg transition-transform active:scale-95"
-                        >
-                          {o.status === "pending" ? t("startPreparing") : t("markReady")}
-                        </button>
-                      ) : (
-                        <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
-                          <Check className="h-4 w-4" />
-                          {t("done")}
-                        </span>
-                      )}
+                    {/* Footer */}
+                    <div className="flex items-center justify-between border-t border-border bg-surface-2/60 px-4 py-3">
+                      <span className="text-[11px] font-medium text-muted">
+                        {itemCount} {t("items")}
+                      </span>
+                      <span className="text-lg font-extrabold text-gold">{o.total}</span>
                     </div>
                   </div>
                 )
