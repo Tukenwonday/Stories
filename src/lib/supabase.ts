@@ -11,6 +11,10 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
  */
 export const isSupabaseConfigured = Boolean(url && anonKey)
 
+export const MENU_IMAGE_BASE = isSupabaseConfigured
+  ? `${url}/storage/v1/object/public/menu-images`
+  : "/images"
+
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url, anonKey)
   : null

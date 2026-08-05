@@ -1,5 +1,6 @@
 import { useLang } from "../lang-context"
 import { strings } from "../i18n"
+import { MENU_IMAGE_BASE } from "../lib/supabase"
 
 export default function Header({ tableNumber }: { tableNumber: string }) {
   const { lang, toggle } = useLang()
@@ -15,7 +16,7 @@ export default function Header({ tableNumber }: { tableNumber: string }) {
       </button>
 
       <img
-        src="/images/logo.png"
+        src={`${MENU_IMAGE_BASE}/logo.png`}
         alt="Stories"
         className="h-20 w-20 rounded-full border border-gold/40 object-cover"
       />

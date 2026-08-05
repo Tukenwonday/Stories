@@ -84,7 +84,7 @@
         "ar": "صلصة البشاميل الكريمية، مزيج الجبن والديك الرومي تعلوها بيضة عيون."
       },
       "price": 30,
-      "image": "images/white-stories.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/white-stories.svg"
     },
     {
       "id": "stories-breakfast",
@@ -98,7 +98,7 @@
         "ar": "تكفي لـ 3 أشخاص."
       },
       "price": 60,
-      "image": "images/stories-breakfast.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/stories-breakfast/stories-breakfast-1785931325900.webp"
     },
     {
       "id": "build-omelette",
@@ -112,7 +112,7 @@
         "ar": "أومليت محضر حسب طلبك بالفرن."
       },
       "price": 25,
-      "image": "images/build-omelette.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/build-omelette.svg"
     },
     {
       "id": "kalimera-greece",
@@ -126,7 +126,7 @@
         "ar": "تعلوها البصل الأحمر، شرائح الطماطم، الجبن الأبيض والبيستو."
       },
       "price": 28,
-      "image": "images/kalimera-greece.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/kalimera-greece.svg"
     },
     {
       "id": "armenian-egg-pie",
@@ -140,7 +140,7 @@
         "ar": "تقدم محشوة بالسجق الأرمني والجبن الذائب والبيض."
       },
       "price": 30,
-      "image": "images/armenian-egg-pie.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/armenian-egg-pie.svg"
     },
     {
       "id": "fried-white-cheese",
@@ -154,7 +154,7 @@
         "ar": "جبنة بيضاء محلية مقلية بالزيت."
       },
       "price": 25,
-      "image": "images/fried-white-cheese.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/fried-white-cheese.svg"
     },
     {
       "id": "turkish-lahmajooun",
@@ -168,7 +168,7 @@
         "ar": "عجين رقيق تركي مغطى باللحم المفروم المتبل."
       },
       "price": 30,
-      "image": "images/turkish-lahmajooun.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/turkish-lahmajooun.svg"
     },
     {
       "id": "lebanese-manqoushe",
@@ -182,7 +182,7 @@
         "ar": "تقدم مغطاة بزيت الزيتون والزعتر والجبن البلدي الأبيض."
       },
       "price": 25,
-      "image": "images/lebanese-manqoushe.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/lebanese-manqoushe.svg"
     },
     {
       "id": "foccacia-traditional-italian",
@@ -196,7 +196,7 @@
         "ar": "خبز الفوكاتشيا المخبوز على الطريقة الإيطالية."
       },
       "price": 30,
-      "image": "images/foccacia-traditional-italian.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/foccacia-traditional-italian.svg"
     },
     {
       "id": "foccacia-oriental-greek",
@@ -210,7 +210,7 @@
         "ar": "خبز الفوكاتشيا المخبوز على الطريقة الشرقية اليونانية."
       },
       "price": 30,
-      "image": "images/foccacia-oriental-greek.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/foccacia-oriental-greek.svg"
     },
     {
       "id": "soup-of-the-day",
@@ -224,7 +224,7 @@
         "ar": "يرجى سؤال النادل عن اختيار اليوم."
       },
       "price": 20,
-      "image": "images/soup-of-the-day.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/soup-of-the-day.svg"
     },
     {
       "id": "greek-salad",
@@ -238,7 +238,7 @@
         "ar": "طماطم طازجة، خيار، زيتون، جبنة فيتا وزيت زيتون."
       },
       "price": 32,
-      "image": "images/greek-salad.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/greek-salad.svg"
     },
     {
       "id": "green-salad",
@@ -252,7 +252,7 @@
         "ar": "مزيج طازج من الأوراق الخضراء والخضار."
       },
       "price": 28,
-      "image": "images/green-salad.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/green-salad.svg"
     },
     {
       "id": "halloumi-salad",
@@ -266,7 +266,7 @@
         "ar": "سلطة مشكلة تعلوها جبنة الحلومي المشوية."
       },
       "price": 33,
-      "image": "images/halloumi-salad.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/halloumi-salad.svg"
     },
     {
       "id": "mexican-salad",
@@ -280,7 +280,7 @@
         "ar": "تعلوها دجاج البافالو والذرة مع الأفوكادو."
       },
       "price": 38,
-      "image": "images/mexican-salad.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mexican-salad.svg"
     },
     {
       "id": "our-story-salad",
@@ -294,7 +294,7 @@
         "ar": "سلطة مشكلة مميزة من ابتكار المحل."
       },
       "price": 38,
-      "image": "images/our-story-salad.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/our-story-salad.svg"
     },
     {
       "id": "caesar-salad",
@@ -344,7 +344,7 @@
           ]
         }
       ],
-      "image": "images/caesar-salad.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/caesar-salad.svg"
     },
     {
       "id": "quinoa-salad",
@@ -358,7 +358,7 @@
         "ar": "تقدم مع الفواكه المجففة، البنجر والجوز."
       },
       "price": 36,
-      "image": "images/quinoa-salad.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/quinoa-salad.svg"
     },
     {
       "id": "seafood-crunchy-salad",
@@ -372,7 +372,7 @@
         "ar": "روبيان، كاليماري وبلح البحر، خس مقرمش، تتبيلة الليمون الحامضة وخضروات جذرية مقرمشة."
       },
       "price": 45,
-      "image": "images/seafood-crunchy-salad.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/seafood-crunchy-salad.svg"
     },
     {
       "id": "chicken-wings",
@@ -420,7 +420,7 @@
           ]
         }
       ],
-      "image": "images/chicken-wings.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/chicken-wings.svg"
     },
     {
       "id": "garlic-bread",
@@ -434,7 +434,7 @@
         "ar": "تقدم ساخنة وذائبة مع الجبن."
       },
       "price": 22,
-      "image": "images/garlic-bread.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/garlic-bread.svg"
     },
     {
       "id": "crispy-chicken-bites",
@@ -448,7 +448,7 @@
         "ar": "قطع دجاج مقرمشة ذهبية لذيذة تقدم مع صوص."
       },
       "price": 36,
-      "image": "images/crispy-chicken-bites.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/crispy-chicken-bites.svg"
     },
     {
       "id": "stories-platter",
@@ -462,7 +462,7 @@
         "ar": "تشكيلة من مقبلاتنا المميزة."
       },
       "price": 63,
-      "image": "images/stories-platter.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/stories-platter.svg"
     },
     {
       "id": "mix-fries",
@@ -497,7 +497,7 @@
           ]
         }
       ],
-      "image": "images/mix-fries.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mix-fries.svg"
     },
     {
       "id": "mozzarella-sticks",
@@ -511,7 +511,7 @@
         "ar": "أصابع جبنة الموزاريلا المقلية المقرمشة."
       },
       "price": 33,
-      "image": "images/mozzarella-sticks.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mozzarella-sticks.svg"
     },
     {
       "id": "chicken-fingers",
@@ -525,7 +525,7 @@
         "ar": "تقدم مع الصلصة الحارة أو صلصة المحل والبطاطا المقلية."
       },
       "price": 35,
-      "image": "images/chicken-fingers.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/chicken-fingers.svg"
     },
     {
       "id": "stuffed-mushrooms",
@@ -539,7 +539,7 @@
         "ar": "مشروم محشو بجبنة الكريمة الغنية بالفرن."
       },
       "price": 33,
-      "image": "images/stuffed-mushrooms.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/stuffed-mushrooms.svg"
     },
     {
       "id": "crispy-shrimps",
@@ -553,7 +553,7 @@
         "ar": "روبيان مقلي مقرمش ذهبي مع صوص جانبى."
       },
       "price": 39,
-      "image": "images/crispy-shrimps.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/crispy-shrimps.svg"
     },
     {
       "id": "buffalo-chicken-tenders",
@@ -567,7 +567,7 @@
         "ar": "تقدم مع الكريمة الحامضة."
       },
       "price": 36,
-      "image": "images/buffalo-chicken-tenders.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/buffalo-chicken-tenders.svg"
     },
     {
       "id": "mexican-nachos",
@@ -581,7 +581,7 @@
         "ar": "جبنة ذائبة، فاصوليا سوداء، كريمة حامضة، صلصة الطماطم، غواكامولي الأفوكادو والهلابينو."
       },
       "price": 39,
-      "image": "images/mexican-nachos.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mexican-nachos.svg"
     },
     {
       "id": "cold-cuts-sandwich",
@@ -629,7 +629,7 @@
           ]
         }
       ],
-      "image": "images/cold-cuts-sandwich.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cold-cuts-sandwich.svg"
     },
     {
       "id": "sesame-roll",
@@ -709,7 +709,7 @@
           ]
         }
       ],
-      "image": "images/sesame-roll.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/sesame-roll.svg"
     },
     {
       "id": "mexican-burrito-chicken",
@@ -757,7 +757,7 @@
           ]
         }
       ],
-      "image": "images/mexican-burrito-chicken.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mexican-burrito-chicken.svg"
     },
     {
       "id": "mexican-burrito-beef",
@@ -805,7 +805,7 @@
           ]
         }
       ],
-      "image": "images/mexican-burrito-beef.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mexican-burrito-beef.svg"
     },
     {
       "id": "shawerma-roll-chicken",
@@ -853,7 +853,7 @@
           ]
         }
       ],
-      "image": "images/shawerma-roll-chicken.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/shawerma-roll-chicken.svg"
     },
     {
       "id": "shawerma-roll-beef",
@@ -901,7 +901,7 @@
           ]
         }
       ],
-      "image": "images/shawerma-roll-beef.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/shawerma-roll-beef.svg"
     },
     {
       "id": "creamy-alfredo-sandwich-chicken",
@@ -949,7 +949,7 @@
           ]
         }
       ],
-      "image": "images/creamy-alfredo-sandwich-chicken.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/creamy-alfredo-sandwich-chicken.svg"
     },
     {
       "id": "creamy-alfredo-sandwich-beef",
@@ -997,7 +997,7 @@
           ]
         }
       ],
-      "image": "images/creamy-alfredo-sandwich-beef.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/creamy-alfredo-sandwich-beef.svg"
     },
     {
       "id": "chicken-stories-sandwich",
@@ -1045,7 +1045,7 @@
           ]
         }
       ],
-      "image": "images/chicken-stories-sandwich.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/chicken-stories-sandwich.svg"
     },
     {
       "id": "steak-sandwich",
@@ -1093,7 +1093,7 @@
           ]
         }
       ],
-      "image": "images/steak-sandwich.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/steak-sandwich.svg"
     },
     {
       "id": "classic-burger",
@@ -1160,7 +1160,7 @@
           ]
         }
       ],
-      "image": "images/classic-burger.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/classic-burger.svg"
     },
     {
       "id": "chicken-burger",
@@ -1208,7 +1208,7 @@
           ]
         }
       ],
-      "image": "images/chicken-burger.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/chicken-burger.svg"
     },
     {
       "id": "bbq-chicken-pizza",
@@ -1222,7 +1222,7 @@
         "ar": "مغطاة بقطع دجاج بصلصة الباربيكيو والجبن الذائب."
       },
       "price": 45,
-      "image": "images/bbq-chicken-pizza.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/bbq-chicken-pizza.svg"
     },
     {
       "id": "super-supreme-pizza",
@@ -1236,7 +1236,7 @@
         "ar": "تشكيلة غنية من الخضار الطازجة وجبن الموزاريلا."
       },
       "price": 43,
-      "image": "images/super-supreme-pizza.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/super-supreme-pizza.svg"
     },
     {
       "id": "stories-special-pizza",
@@ -1250,7 +1250,7 @@
         "ar": "تقدم مع سلطة جانبية."
       },
       "price": 45,
-      "image": "images/stories-special-pizza.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/stories-special-pizza.svg"
     },
     {
       "id": "pepperoni-pizza",
@@ -1264,7 +1264,7 @@
         "ar": "شرائح بيبروني بقري غنية فوق الجبن وصلصة الطماطم."
       },
       "price": 43,
-      "image": "images/pepperoni-pizza.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/pepperoni-pizza.svg"
     },
     {
       "id": "chicken-alfredo-pizza",
@@ -1278,7 +1278,7 @@
         "ar": "صلصة الفريدو بالكريمة الغنية وقطع الدجاج المشوية."
       },
       "price": 45,
-      "image": "images/chicken-alfredo-pizza.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/chicken-alfredo-pizza.svg"
     },
     {
       "id": "margarita-pizza",
@@ -1292,7 +1292,7 @@
         "ar": "بيتزا الجبن الكلاسيكية بصلصة الطماطم الإيطالية."
       },
       "price": 40,
-      "image": "images/margarita-pizza.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/margarita-pizza.svg"
     },
     {
       "id": "pesto-pizza",
@@ -1306,7 +1306,7 @@
         "ar": "بيتزا بصلصة البيستو العشبية وموزاريلا."
       },
       "price": 44,
-      "image": "images/pesto-pizza.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/pesto-pizza.svg"
     },
     {
       "id": "fettucini-alfredo",
@@ -1320,7 +1320,7 @@
         "ar": "طبق كلاسيكي مع دجاج كريمي وصلصة الفطر."
       },
       "price": 45,
-      "image": "images/fettucini-alfredo.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/fettucini-alfredo.svg"
     },
     {
       "id": "spaghetti-bolognaise",
@@ -1334,7 +1334,7 @@
         "ar": "بولونيز اللحم البقري والطماطم، تعلوها جبنة البارميزان."
       },
       "price": 48,
-      "image": "images/spaghetti-bolognaise.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/spaghetti-bolognaise.svg"
     },
     {
       "id": "penne-rose",
@@ -1348,7 +1348,7 @@
         "ar": "تقدم في صلصة الروز الكريمية مع الريحان."
       },
       "price": 38,
-      "image": "images/penne-rose.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/penne-rose.svg"
     },
     {
       "id": "fettucini-al-greco",
@@ -1362,7 +1362,7 @@
         "ar": "على الطريقة اليونانية، طماطم كرزية، زيتون كالاماتا، جبنة فيتا، ريحان طازج."
       },
       "price": 38,
-      "image": "images/fettucini-al-greco.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/fettucini-al-greco.svg"
     },
     {
       "id": "shrimps-spaghetti",
@@ -1376,7 +1376,7 @@
         "ar": "روبيان طازج في صلصة الطماطم الغنية مع السباغيتي."
       },
       "price": 45,
-      "image": "images/shrimps-spaghetti.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/shrimps-spaghetti.svg"
     },
     {
       "id": "penne-pesto",
@@ -1418,7 +1418,7 @@
           ]
         }
       ],
-      "image": "images/penne-pesto.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/penne-pesto.svg"
     },
     {
       "id": "veggie-lasagne",
@@ -1432,7 +1432,7 @@
         "ar": "طبقات من اللازانيا مع الخضار المشكلة والجبن الذائب."
       },
       "price": 50,
-      "image": "images/veggie-lasagne.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/veggie-lasagne.svg"
     },
     {
       "id": "meat-lasagne",
@@ -1446,7 +1446,7 @@
         "ar": "طبقات من اللازانيا مع اللحم المفروم وجبن الموزاريلا والبارميزان."
       },
       "price": 55,
-      "image": "images/meat-lasagne.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/meat-lasagne.svg"
     },
     {
       "id": "ravioli",
@@ -1460,7 +1460,7 @@
         "ar": "صلصة الفطر الكريمية / صلصة منزلية."
       },
       "price": 40,
-      "image": "images/ravioli.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/ravioli.svg"
     },
     {
       "id": "seafood-paella",
@@ -1474,7 +1474,7 @@
         "ar": "أرز البايلا الإسباني التقليدي الغني بثمار البحر المنوعة."
       },
       "price": 70,
-      "image": "images/seafood-paella.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/seafood-paella.svg"
     },
     {
       "id": "mexican-fajitas-chicken",
@@ -1515,7 +1515,7 @@
           ]
         }
       ],
-      "image": "images/mexican-fajitas-chicken.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mexican-fajitas-chicken.svg"
     },
     {
       "id": "mexican-fajitas-beef",
@@ -1556,7 +1556,7 @@
           ]
         }
       ],
-      "image": "images/mexican-fajitas-beef.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mexican-fajitas-beef.svg"
     },
     {
       "id": "pollo-loco",
@@ -1570,7 +1570,7 @@
         "ar": "ستيك صدر دجاج متبل بصلصة الأعشاب الخاصة."
       },
       "price": 55,
-      "image": "images/pollo-loco.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/pollo-loco.svg"
     },
     {
       "id": "escalop-al-forno",
@@ -1611,7 +1611,7 @@
           ]
         }
       ],
-      "image": "images/escalop-al-forno.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/escalop-al-forno.svg"
     },
     {
       "id": "steak-fillet",
@@ -1659,7 +1659,7 @@
           ]
         }
       ],
-      "image": "images/steak-fillet.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/steak-fillet.svg"
     },
     {
       "id": "salmon-fillet",
@@ -1732,7 +1732,7 @@
           ]
         }
       ],
-      "image": "images/salmon-fillet.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/salmon-fillet.svg"
     },
     {
       "id": "char-chicken-breast",
@@ -1780,7 +1780,7 @@
           ]
         }
       ],
-      "image": "images/char-chicken-breast.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/char-chicken-breast.svg"
     },
     {
       "id": "indian-butter-chicken",
@@ -1794,7 +1794,7 @@
         "ar": "قطع دجاج عصيرية في صلصة الزبدة الهندية الكلاسيكية، تقدم مع الأرز."
       },
       "price": 50,
-      "image": "images/indian-butter-chicken.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/indian-butter-chicken.svg"
     },
     {
       "id": "stroganoff-chicken",
@@ -1808,7 +1808,7 @@
         "ar": "دجاج ستروجانوف بالكريمة والفطر يقدم مع الأرز."
       },
       "price": 55,
-      "image": "images/stroganoff-chicken.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/stroganoff-chicken.svg"
     },
     {
       "id": "stroganoff-beef",
@@ -1822,7 +1822,7 @@
         "ar": "لحم ستروجانوف بالكريمة والفطر يقدم مع الأرز."
       },
       "price": 65,
-      "image": "images/stroganoff-beef.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/stroganoff-beef.svg"
     },
     {
       "id": "espresso",
@@ -1836,7 +1836,7 @@
         "ar": "جرعة غنية ومركزة من الإسبريسو الساخن."
       },
       "price": 10,
-      "image": "images/espresso.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/espresso.svg"
     },
     {
       "id": "cappuccino",
@@ -1850,7 +1850,7 @@
         "ar": "إسبريسو ساخن مع حليب مبخر ورغوة حليب كثيفة."
       },
       "price": 14,
-      "image": "images/cappuccino.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cappuccino.svg"
     },
     {
       "id": "latte",
@@ -1892,7 +1892,7 @@
           ]
         }
       ],
-      "image": "images/latte.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/latte.svg"
     },
     {
       "id": "cortado",
@@ -1906,7 +1906,7 @@
         "ar": "إسبريسو ساخن ممزوج بكمية متساوية من الحليب الدافئ."
       },
       "price": 14,
-      "image": "images/cortado.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cortado.svg"
     },
     {
       "id": "americano",
@@ -1948,7 +1948,7 @@
           ]
         }
       ],
-      "image": "images/americano.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/americano.svg"
     },
     {
       "id": "mocha",
@@ -1990,7 +1990,7 @@
           ]
         }
       ],
-      "image": "images/mocha.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mocha.svg"
     },
     {
       "id": "spanish-latte",
@@ -2032,7 +2032,7 @@
           ]
         }
       ],
-      "image": "images/spanish-latte.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/spanish-latte.svg"
     },
     {
       "id": "strawberry-matcha",
@@ -2046,7 +2046,7 @@
         "ar": "شاي الماتشا الفاخر مع حليب الفراولة والثلج."
       },
       "price": 20,
-      "image": "images/strawberry-matcha.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/strawberry-matcha.svg"
     },
     {
       "id": "coco-matcha",
@@ -2060,7 +2060,7 @@
         "ar": "شاي الماتشا الأخضر مع حليب جوز الهند والثلج."
       },
       "price": 20,
-      "image": "images/coco-matcha.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/coco-matcha.svg"
     },
     {
       "id": "matcha-latte",
@@ -2102,7 +2102,7 @@
           ]
         }
       ],
-      "image": "images/matcha-latte.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/matcha-latte.svg"
     },
     {
       "id": "lemonade",
@@ -2116,7 +2116,7 @@
         "ar": "عصير ليمون طازج منعش."
       },
       "price": 17,
-      "image": "images/lemonade.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/lemonade.svg"
     },
     {
       "id": "cranberry-cotton",
@@ -2130,7 +2130,7 @@
         "ar": "عصير ليمون طبيعي مع شراب الكرانبيري وحلوى القطن."
       },
       "price": 18,
-      "image": "images/cranberry-cotton.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cranberry-cotton.svg"
     },
     {
       "id": "pineapple-lemon",
@@ -2144,7 +2144,7 @@
         "ar": "عصير ليمون طبيعي منعش ممزوج بنكهة الأناناس."
       },
       "price": 19,
-      "image": "images/pineapple-lemon.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/pineapple-lemon.svg"
     },
     {
       "id": "vanilla-lemon",
@@ -2158,7 +2158,7 @@
         "ar": "عصير ليمون طبيعي ممزوج بنكهة الفانيلا الحلوة."
       },
       "price": 20,
-      "image": "images/vanilla-lemon.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/vanilla-lemon.svg"
     },
     {
       "id": "cloud-colada",
@@ -2172,7 +2172,7 @@
         "ar": "مزيج كولادا كريمي استوائي منعش."
       },
       "price": 19,
-      "image": "images/cloud-colada.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cloud-colada.svg"
     },
     {
       "id": "cranberry-bubble",
@@ -2186,7 +2186,7 @@
         "ar": "مشروب كرانبيري غازي فوار ومنعش."
       },
       "price": 17,
-      "image": "images/cranberry-bubble.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cranberry-bubble.svg"
     },
     {
       "id": "mix-berries-coconut",
@@ -2200,7 +2200,7 @@
         "ar": "مزيج التوت المنوع مع ماء جوز الهند المنعش."
       },
       "price": 19,
-      "image": "images/mix-berries-coconut.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mix-berries-coconut.svg"
     },
     {
       "id": "dragon-fruit",
@@ -2214,7 +2214,7 @@
         "ar": "مشروب دراغون فروت استوائي فوار ولذيذ."
       },
       "price": 17,
-      "image": "images/dragon-fruit.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/dragon-fruit.svg"
     },
     {
       "id": "oreo-shake",
@@ -2228,7 +2228,7 @@
         "ar": "مخفوق الحليب الكثيف مع بسكويت أوريو المفروم والكريمة."
       },
       "price": 20,
-      "image": "images/oreo-shake.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/oreo-shake.svg"
     },
     {
       "id": "blueberry-shake",
@@ -2242,7 +2242,7 @@
         "ar": "مخفوق الحليب الكثيف مع التوت الأزرق والكريمة."
       },
       "price": 20,
-      "image": "images/blueberry-shake.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/blueberry-shake.svg"
     },
     {
       "id": "lotus-shake",
@@ -2256,7 +2256,7 @@
         "ar": "مخفوق الحليب الكثيف مع زبدة وبسكويت لوتس الشهير."
       },
       "price": 20,
-      "image": "images/lotus-shake.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/lotus-shake.svg"
     },
     {
       "id": "golden-coco-mango",
@@ -2270,7 +2270,7 @@
         "ar": "سموذي المانجو الاستوائي الكثيف مع جوز الهند."
       },
       "price": 20,
-      "image": "images/golden-coco-mango.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/golden-coco-mango.svg"
     },
     {
       "id": "hibiscus-blackberry",
@@ -2284,7 +2284,7 @@
         "ar": "سموذي الكركديه المنعش مع التوت الأسود البري."
       },
       "price": 19,
-      "image": "images/hibiscus-blackberry.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/hibiscus-blackberry.svg"
     },
     {
       "id": "coco-strawberry",
@@ -2298,7 +2298,7 @@
         "ar": "سموذي الفراولة اللذيذ مع نكهة جوز الهند الاستوائية."
       },
       "price": 22,
-      "image": "images/coco-strawberry.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/coco-strawberry.svg"
     },
     {
       "id": "berry-cream",
@@ -2312,7 +2312,7 @@
         "ar": "سموذي التوت المشكل الكثيف مع الكريمة الغنية."
       },
       "price": 20,
-      "image": "images/berry-cream.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/berry-cream.svg"
     },
     {
       "id": "mango-smoothie",
@@ -2326,7 +2326,7 @@
         "ar": "سموذي المانجو الطبيعي الطازج المخلوط مع الثلج."
       },
       "price": 18,
-      "image": "images/mango-smoothie.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mango-smoothie.svg"
     },
     {
       "id": "strawberry-smoothie",
@@ -2340,7 +2340,7 @@
         "ar": "سموذي الفراولة الطبيعي الطازج المخلوط مع الثلج."
       },
       "price": 18,
-      "image": "images/strawberry-smoothie.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/strawberry-smoothie.svg"
     },
     {
       "id": "orange-juice",
@@ -2354,7 +2354,7 @@
         "ar": "عصير برتقال طبيعي طازج معصور يومياً."
       },
       "price": 15,
-      "image": "images/orange-juice.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/orange-juice.svg"
     },
     {
       "id": "carrot-juice",
@@ -2368,7 +2368,7 @@
         "ar": "عصير جزر طبيعي طازج معصور يومياً."
       },
       "price": 15,
-      "image": "images/carrot-juice.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/carrot-juice.svg"
     },
     {
       "id": "green-apple-juice",
@@ -2382,7 +2382,7 @@
         "ar": "عصير تفاح أخضر طبيعي طازج ومنعش."
       },
       "price": 15,
-      "image": "images/green-apple-juice.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/green-apple-juice.svg"
     },
     {
       "id": "hibiscus-iced-tea",
@@ -2396,7 +2396,7 @@
         "ar": "عصير الكركديه الطبيعي البارد والمثلج."
       },
       "price": 18,
-      "image": "images/hibiscus-iced-tea.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/hibiscus-iced-tea.svg"
     },
     {
       "id": "ice-tea-peach",
@@ -2410,7 +2410,7 @@
         "ar": "شاي أسود مثلج بنكهة الدراق المنعشة."
       },
       "price": 15,
-      "image": "images/ice-tea-peach.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/ice-tea-peach.svg"
     },
     {
       "id": "hazelnut-hot",
@@ -2424,7 +2424,7 @@
         "ar": "مشروب الحليب الساخن والغني بنكهة البندق."
       },
       "price": 14,
-      "image": "images/hazelnut-hot.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/hazelnut-hot.svg"
     },
     {
       "id": "salted-caramel-hot",
@@ -2438,7 +2438,7 @@
         "ar": "مشروب الحليب الساخن والغني بنكهة السولتد كراميل."
       },
       "price": 14,
-      "image": "images/salted-caramel-hot.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/salted-caramel-hot.svg"
     },
     {
       "id": "chai-latte",
@@ -2452,7 +2452,7 @@
         "ar": "شاي أسود مع بهارات الشاي الهندي المخلوط بالحليب الساخن."
       },
       "price": 15,
-      "image": "images/chai-latte.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/chai-latte.svg"
     },
     {
       "id": "french-vanilla",
@@ -2466,7 +2466,7 @@
         "ar": "مشروب الحليب الساخن المعطر بنكهة الفانيلا الفرنسية."
       },
       "price": 14,
-      "image": "images/french-vanilla.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/french-vanilla.svg"
     },
     {
       "id": "hot-chocolate",
@@ -2480,7 +2480,7 @@
         "ar": "مشروب الكاكاو الغني والساخن مع الحليب والكريمة."
       },
       "price": 15,
-      "image": "images/hot-chocolate.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/hot-chocolate.svg"
     },
     {
       "id": "chocolate-frappe",
@@ -2494,7 +2494,7 @@
         "ar": "مشروب الشوكولاتة الغني المخفوق مع الثلج والكريمة."
       },
       "price": 14,
-      "image": "images/chocolate-frappe.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/chocolate-frappe.svg"
     },
     {
       "id": "hazelnut-frappe",
@@ -2508,7 +2508,7 @@
         "ar": "مشروب القهوة الباردة بنكهة البندق المخفوقة مع الثلج."
       },
       "price": 14,
-      "image": "images/hazelnut-frappe.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/hazelnut-frappe.svg"
     },
     {
       "id": "salted-caramel-frappe",
@@ -2522,7 +2522,7 @@
         "ar": "مشروب القهوة الباردة بنكهة السولتد كراميل المخفوقة مع الثلج."
       },
       "price": 15,
-      "image": "images/salted-caramel-frappe.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/salted-caramel-frappe.svg"
     },
     {
       "id": "french-vanilla-frappe",
@@ -2536,7 +2536,7 @@
         "ar": "مشروب القهوة الباردة بنكهة الفانيلا الفرنسية المخفوقة مع الثلج."
       },
       "price": 17,
-      "image": "images/french-vanilla-frappe.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/french-vanilla-frappe.svg"
     },
     {
       "id": "caramel-frappe",
@@ -2550,7 +2550,7 @@
         "ar": "مشروب القهوة الباردة بنكهة الكراميل الكلاسيكية المخفوقة مع الثلج."
       },
       "price": 15,
-      "image": "images/caramel-frappe.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/caramel-frappe.svg"
     },
     {
       "id": "iced-coffee",
@@ -2564,7 +2564,7 @@
         "ar": "قهوة كلاسيكية باردة ومنعشة تقدم مع الثلج."
       },
       "price": 15,
-      "image": "images/iced-coffee.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/iced-coffee.svg"
     },
     {
       "id": "coffee-dream",
@@ -2578,7 +2578,7 @@
         "ar": "قهوة باردة مميزة وخاصة تعلوها الكريمة من ابتكار ستوريز."
       },
       "price": 18,
-      "image": "images/coffee-dream.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/coffee-dream.svg"
     },
     {
       "id": "affogato",
@@ -2592,7 +2592,7 @@
         "ar": "آيس كريم الفانيليا الغنية يصب فوقها جرعة إسبريسو ساخنة."
       },
       "price": 14,
-      "image": "images/affogato.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/affogato.svg"
     },
     {
       "id": "cold-mapple-cortado",
@@ -2606,7 +2606,7 @@
         "ar": "كورتادو بارد مع حليب بارد وشراب القيقب (المابل) الحلو."
       },
       "price": 12,
-      "image": "images/cold-mapple-cortado.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cold-mapple-cortado.svg"
     },
     {
       "id": "mineral-water",
@@ -2620,7 +2620,7 @@
         "ar": "زجاجة مياه معدنية طبيعية باردة."
       },
       "price": 5,
-      "image": "images/mineral-water.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/mineral-water.svg"
     },
     {
       "id": "soda-water",
@@ -2634,7 +2634,7 @@
         "ar": "مياه صودا غازية فوارة باردة."
       },
       "price": 10,
-      "image": "images/soda-water.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/soda-water.svg"
     },
     {
       "id": "cola",
@@ -2648,7 +2648,7 @@
         "ar": "عبوة كوكا كولا كلاسيكية باردة."
       },
       "price": 8,
-      "image": "images/cola.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cola.svg"
     },
     {
       "id": "cola-zero",
@@ -2662,7 +2662,7 @@
         "ar": "عبوة كوكا كولا زيرو خالية من السكر."
       },
       "price": 8,
-      "image": "images/cola-zero.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cola-zero.svg"
     },
     {
       "id": "sprite",
@@ -2676,7 +2676,7 @@
         "ar": "عبوة مشروب سبرايت المنعش بنكهة الليمون."
       },
       "price": 8,
-      "image": "images/sprite.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/sprite.svg"
     },
     {
       "id": "xl",
@@ -2690,7 +2690,7 @@
         "ar": "عبوة مشروب الطاقة إكس إل البارد."
       },
       "price": 12,
-      "image": "images/xl.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/xl.svg"
     },
     {
       "id": "stories-shisha",
@@ -2704,7 +2704,7 @@
         "ar": "أرجيلة بنكهة خلطة ستوريز الخاصة والمميزة."
       },
       "price": 35,
-      "image": "images/stories-shisha.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/stories-shisha.svg"
     },
     {
       "id": "two-apple-shisha",
@@ -2718,7 +2718,7 @@
         "ar": "أرجيلة بنكهة التفاحتين الكلاسيكية الممتازة."
       },
       "price": 35,
-      "image": "images/two-apple-shisha.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/two-apple-shisha.svg"
     },
     {
       "id": "nakhleh-shisha",
@@ -2732,7 +2732,7 @@
         "ar": "أرجيلة بنكهة معسل النخلة الكلاسيكي البكر."
       },
       "price": 40,
-      "image": "images/nakhleh-shisha.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/nakhleh-shisha.svg"
     },
     {
       "id": "lemon-mint-shisha",
@@ -2746,7 +2746,7 @@
         "ar": "أرجيلة بنكهة الليمون والنعناع المنعشة."
       },
       "price": 35,
-      "image": "images/lemon-mint-shisha.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/lemon-mint-shisha.svg"
     },
     {
       "id": "watermelon-mint-shisha",
@@ -2760,7 +2760,7 @@
         "ar": "أرجيلة بنكهة البطيخ والنعناع الصيفية."
       },
       "price": 35,
-      "image": "images/watermelon-mint-shisha.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/watermelon-mint-shisha.svg"
     },
     {
       "id": "blueberry-shisha",
@@ -2774,7 +2774,7 @@
         "ar": "أرجيلة بنكهة التوت الأزرق (بلوبيري)."
       },
       "price": 35,
-      "image": "images/blueberry-shisha.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/blueberry-shisha.svg"
     },
     {
       "id": "cinnamon-gum-shisha",
@@ -2788,7 +2788,7 @@
         "ar": "أرجيلة بنكهة القرفة والعلكة المميزة."
       },
       "price": 35,
-      "image": "images/cinnamon-gum-shisha.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cinnamon-gum-shisha.svg"
     },
     {
       "id": "soufleh",
@@ -2802,7 +2802,7 @@
         "ar": "سوفليه الشوكولاتة الدافئة الذائبة بالفرن."
       },
       "price": 25,
-      "image": "images/soufleh.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/soufleh.svg"
     },
     {
       "id": "cheesecake",
@@ -2816,7 +2816,7 @@
         "ar": "تشيز كيك مخبوز كلاسيكي ولذيذ."
       },
       "price": 25,
-      "image": "images/cheesecake.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/cheesecake.svg"
     },
     {
       "id": "lotus-dessert",
@@ -2830,7 +2830,7 @@
         "ar": "حلوى غنية بطعم بسكويت وزبدة اللوتس."
       },
       "price": 25,
-      "image": "images/lotus-dessert.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/lotus-dessert.svg"
     },
     {
       "id": "blueberry-dessert",
@@ -2844,7 +2844,7 @@
         "ar": "حلوى لذيذة مغطاة بمربى التوت البري الأزرق."
       },
       "price": 25,
-      "image": "images/blueberry-dessert.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/blueberry-dessert.svg"
     },
     {
       "id": "strawberry-dessert",
@@ -2858,7 +2858,7 @@
         "ar": "حلوى لذيذة مغطاة بمربى الفراولة الطازجة."
       },
       "price": 25,
-      "image": "images/strawberry-dessert.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/strawberry-dessert.svg"
     },
     {
       "id": "stories-cake",
@@ -2872,7 +2872,7 @@
         "ar": "كيكة الشوكولاتة الفاخرة الخاصة بالمحل."
       },
       "price": 25,
-      "image": "images/stories-cake.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/stories-cake.svg"
     },
     {
       "id": "oreo-dessert",
@@ -2886,7 +2886,7 @@
         "ar": "حلوى غنية ببسكويت أوريو والشوكولاتة والكريمة."
       },
       "price": 25,
-      "image": "images/oreo-dessert.svg"
+      "image": "https://doinkehdvtvqzcikwwos.supabase.co/storage/v1/object/public/menu-images/images/oreo-dessert.svg"
     }
   ]
 }

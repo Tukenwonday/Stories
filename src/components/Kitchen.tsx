@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Clock, Lock, RefreshCw, SlidersHorizontal } from "lucide-react"
 import type { Lang } from "../types"
 import { LangContext } from "../lang-context"
-import { supabase } from "../lib/supabase"
+import { supabase, MENU_IMAGE_BASE } from "../lib/supabase"
 import { kitchenStrings } from "../kitchen-i18n"
 import MenuEditor from "./MenuEditor"
 
@@ -164,7 +164,7 @@ export default function Kitchen() {
       <LangContext.Provider value={{ lang, dir, toggle: () => setLang((l) => (l === "ar" ? "en" : "ar")) }}>
         <div dir={dir} className="flex min-h-screen flex-col items-center justify-center bg-bg px-6 text-center font-sans text-foreground">
           <img
-            src="/images/logo.png"
+            src={`${MENU_IMAGE_BASE}/logo.png`}
             alt="Stories"
             className="h-20 w-20 rounded-full border border-gold/40 object-cover"
           />
@@ -230,7 +230,7 @@ export default function Kitchen() {
 
               <div className="flex items-center gap-3">
                 <img
-                  src="/images/logo.png"
+                  src={`${MENU_IMAGE_BASE}/logo.png`}
                   alt="Stories"
                   className="h-9 w-9 rounded-full border border-gold/40 object-cover"
                 />
