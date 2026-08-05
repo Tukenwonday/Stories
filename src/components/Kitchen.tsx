@@ -183,8 +183,7 @@ export default function Kitchen() {
             className="mt-8 w-full max-w-xs"
           >
             <input
-              type="password"
-              inputMode="numeric"
+              type="text"
               autoFocus
               value={pin}
               onChange={(e) => {
@@ -294,77 +293,98 @@ export default function Kitchen() {
           ) : orders.length === 0 ? (
             <p className="py-20 text-center text-sm text-muted">{t("noOrders")}</p>
           ) : (
-            <ol className="divide-y divide-border">
-              {orders.map((o) => {
-                const isNew = now - new Date(o.created_at).getTime() < 15000
-                return (
-                  <li
-                    key={o.id}
-                    className={
-                      "py-5 " + (isNew ? "rounded-xl bg-gold/5 px-3 shadow-inner shadow-gold/10" : "")
-                    }
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      {/* Table number */}
-                      <div className="flex shrink-0 flex-col items-center">
-                        <span className="text-3xl font-extrabold leading-none text-gold">
-                          {o.table_number}
-                        </span>
-                        <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
-                          {t("table")}
-                        </span>
-                        {isNew && (
-                          <span className="mt-1.5 rounded-full border border-gold/50 bg-gold/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-gold">
-                            {t("newOrder")}
+            <>
+              {(() => {
+                const items: React.ReactNode[] = []
+                let lastDate = ""
+                orders.forEach((o, i) => {
+                  const date = new Date(o.created_at)
+                  const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+                  if (dateKey !== lastDate) {
+                    lastDate = dateKey
+                    items.push(
+                      <li key={`day-${dateKey}`} className="py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="h-px flex-1 bg-border" />
+                          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-gold">
+                            {t("newDay")}
                           </span>
-                        )}
-                      </div>
-
-                      {/* Items + notes */}
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[11px] text-muted">
-                          {new Date(o.created_at).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          <span className="h-px flex-1 bg-border" />
+                        </div>
+                      </li>,
+                    )
+                  }
+                  const isNew = now - date.getTime() < 15000
+                  items.push(
+                    <li
+                      key={o.id}
+                      className={
+                        "py-5 " + (isNew ? "rounded-xl bg-gold/5 px-3 shadow-inner shadow-gold/10" : "")
+                      }
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        {/* Table number */}
+                        <div className="flex shrink-0 flex-col items-center">
+                          <span className="text-3xl font-extrabold leading-none text-gold">
+                            {o.table_number}
+                          </span>
+                          <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
+                            {t("table")}
+                          </span>
+                          {isNew && (
+                            <span className="mt-1.5 rounded-full border border-gold/50 bg-gold/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-gold">
+                              {t("newOrder")}
+                            </span>
+                          )}
                         </div>
 
-                        <ul className="mt-2">
-                          {o.items.map((it, i) => (
-                            <li key={i} className="flex items-start justify-between gap-3 py-1">
-                              <div className="min-w-0">
-                                <span className="text-sm font-semibold text-foreground">
-                                  {it.quantity}× {it.title}
-                                </span>
-                                {it.modifiers.length > 0 && (
-                                  <span className="ms-2 text-[11px] text-muted">
-                                    {it.modifiers.map((m) => m.option).join(" · ")}
+                        {/* Items + notes */}
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] text-muted">
+                            {date.toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+
+                          <ul className="mt-2">
+                            {o.items.map((it, j) => (
+                              <li key={j} className="flex items-start justify-between gap-3 py-1">
+                                <div className="min-w-0">
+                                  <span className="text-sm font-semibold text-foreground">
+                                    {it.quantity}× {it.title}
                                   </span>
-                                )}
-                              </div>
-                              <span className="shrink-0 text-sm font-semibold text-foreground">
-                                {it.unitPrice * it.quantity}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
+                                  {it.modifiers.length > 0 && (
+                                    <span className="ms-2 text-[11px] text-muted">
+                                      {it.modifiers.map((m) => m.option).join(" · ")}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="shrink-0 text-sm font-semibold text-foreground">
+                                  {it.unitPrice * it.quantity}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
 
-                        {o.notes && (
-                          <p className="mt-2 border-s-2 border-gold ps-3 text-sm leading-relaxed text-gold">
-                            {o.notes}
-                          </p>
-                        )}
-                      </div>
+                          {o.notes && (
+                            <p className="mt-2 border-s-2 border-gold ps-3 text-sm leading-relaxed text-gold">
+                              {o.notes}
+                            </p>
+                          )}
+                        </div>
 
-                      {/* Total */}
-                      <div className="shrink-0">
-                        <span className="text-xl font-extrabold text-foreground">{o.total}</span>
+                        {/* Total */}
+                        <div className="shrink-0">
+                          <span className="text-xl font-extrabold text-foreground">{o.total}</span>
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                )
-              })}
-            </ol>
+                    </li>
+                  )
+                })
+                return items
+              })()}
+            </>
           )}
           </main>
         )}

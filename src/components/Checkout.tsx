@@ -171,8 +171,7 @@ export default function Checkout() {
 
         <form onSubmit={(e) => { e.preventDefault(); unlock() }} className="mt-8 w-full max-w-xs">
           <input
-            type="password"
-            inputMode="numeric"
+            type="text"
             autoFocus
             value={pin}
             onChange={(e) => { setPin(e.target.value); setPinError(false) }}

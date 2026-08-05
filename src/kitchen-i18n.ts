@@ -8,6 +8,7 @@ export const kitchenStrings = {
   noOrders: { en: "No orders yet", ar: "لا توجد طلبات بعد" },
   notes: { en: "Notes", ar: "ملاحظات" },
   newOrder: { en: "New", ar: "جديد" },
+  newDay: { en: "New Day", ar: "يوم جديد" },
   items: { en: "items", ar: "بنود" },
   loading: { en: "Loading orders...", ar: "جارٍ تحميل الطلبات..." },
   loadError: { en: "Failed to load orders", ar: "فشل تحميل الطلبات" },
