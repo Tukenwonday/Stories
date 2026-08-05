@@ -73,20 +73,6 @@ export default function App() {
     }
   }, [tableNumber, checkLocation])
 
-  // Strip the reload cache-buster and re-check location on BFCache restores.
-  useEffect(() => {
-    const url = new URL(window.location.href)
-    if (url.searchParams.has("r")) {
-      url.searchParams.delete("r")
-      window.history.replaceState({}, "", url)
-    }
-    const onShow = (e: PageTransitionEvent) => {
-      if (e.persisted) void checkLocation()
-    }
-    window.addEventListener("pageshow", onShow)
-    return () => window.removeEventListener("pageshow", onShow)
-  }, [checkLocation])
-
   useEffect(() => {
     fetchMenu()
       .then((data) => {
@@ -217,11 +203,8 @@ export default function App() {
           <button
             type="button"
             onClick={() => {
-              if (status === "denied") {
-                const url = new URL(window.location.href)
-                url.searchParams.set("r", String(Date.now()))
-                window.location.href = url.toString()
-              } else void checkLocation()
+              if (status === "denied") window.location.reload()
+              else void checkLocation()
             }}
             className="mt-6 rounded-full bg-gold px-6 py-3 text-sm font-bold text-bg transition-colors active:bg-gold/90"
           >
