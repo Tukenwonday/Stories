@@ -4,7 +4,7 @@ import type { Category, Lang, MenuItem } from "./types"
 import { LangContext } from "./lang-context"
 import { strings } from "./i18n"
 import { fetchMenu } from "./lib/supabase"
-import { verifyLocation, type LocationStatus } from "./lib/geo"
+import { queryLocationPermission, verifyLocation, type LocationStatus, type PermissionState } from "./lib/geo"
 import Header from "./components/Header"
 import CategoryNav from "./components/CategoryNav"
 import MenuItemCard from "./components/MenuItemCard"
@@ -32,6 +32,7 @@ export default function App() {
   const [tableNumber, setTableNumber] = useState<string | null>(null)
   const [tableInvalid, setTableInvalid] = useState(false)
   const [locationStatus, setLocationStatus] = useState<LocationStatus | "checking">("checking")
+  const [permState, setPermState] = useState<PermissionState>("unknown")
   const [lang, setLang] = useState<Lang>("ar")
   const dir: "ltr" | "rtl" = lang === "ar" ? "rtl" : "ltr"
   const toggleLang = () => setLang((l) => (l === "ar" ? "en" : "ar"))
@@ -73,13 +74,15 @@ export default function App() {
     }
   }, [tableNumber, checkLocation])
 
-  // Strip the reload cache-buster and re-check location on BFCache restores.
+  // When location is denied, figure out why so the screen can guide the user.
   useEffect(() => {
-    const url = new URL(window.location.href)
-    if (url.searchParams.has("r")) {
-      url.searchParams.delete("r")
-      window.history.replaceState({}, "", url)
+    if (locationStatus === "denied") {
+      void queryLocationPermission().then(setPermState)
     }
+  }, [locationStatus])
+
+  // Re-check location when a BFCache restore skips the normal load.
+  useEffect(() => {
     const onShow = (e: PageTransitionEvent) => {
       if (e.persisted) void checkLocation()
     }
@@ -214,18 +217,22 @@ export default function App() {
               <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted">{strings.locationRequiredHint[lang]}</p>
             </>
           )}
+          {status === "denied" && permState === "denied" && (
+            <div className="mt-6 w-full max-w-xs rounded-xl border border-gold/30 bg-gold/5 p-4">
+              <p className="text-sm font-bold text-foreground">{strings.locationBlocked[lang]}</p>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted">{strings.locationBlockedHint[lang]}</p>
+            </div>
+          )}
           <button
             type="button"
-            onClick={() => {
-              if (status === "denied") {
-                const url = new URL(window.location.href)
-                url.searchParams.set("r", String(Date.now()))
-                window.location.href = url.toString()
-              } else void checkLocation()
-            }}
+            onClick={() => void checkLocation()}
             className="mt-6 rounded-full bg-gold px-6 py-3 text-sm font-bold text-bg transition-colors active:bg-gold/90"
           >
-            {status === "outOfRange" ? strings.retry[lang] : strings.enableLocation[lang]}
+            {status === "denied" && permState === "denied"
+              ? strings.locationEnabled[lang]
+              : status === "outOfRange"
+                ? strings.retry[lang]
+                : strings.enableLocation[lang]}
           </button>
         </div>
       </LangContext.Provider>

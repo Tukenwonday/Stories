@@ -3,6 +3,16 @@ const CAFE_LNG = Number(import.meta.env.VITE_CAFE_LNG)
 const CAFE_RADIUS_M = Number(import.meta.env.VITE_CAFE_RADIUS_M) || 50
 
 export type LocationStatus = "ok" | "denied" | "outOfRange" | "unsupported"
+export type PermissionState = "granted" | "denied" | "prompt" | "unknown"
+
+export async function queryLocationPermission(): Promise<PermissionState> {
+  try {
+    const status = await navigator.permissions.query({ name: "geolocation" })
+    return status.state as "granted" | "denied" | "prompt"
+  } catch {
+    return "unknown"
+  }
+}
 
 export function haversineDistanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000
