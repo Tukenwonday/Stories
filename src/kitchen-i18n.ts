@@ -24,8 +24,12 @@ export const kitchenStrings = {
   descriptionLabel: { en: "Description", ar: "الوصف" },
   priceLabel: { en: "Price", ar: "السعر" },
   imageLabel: { en: "Image path", ar: "مسار الصورة" },
-  availableFromLabel: { en: "Available from", ar: "متوفر من" },
-  availableToLabel: { en: "Available to", ar: "متوفر حتى" },
+  notServedFromLabel: { en: "Not served from", ar: "لا يُقدَّم من" },
+  notServedToLabel: { en: "Not served to", ar: "لا يُقدَّم حتى" },
+  notServedHint: {
+    en: "Leave both empty = always available. Otherwise the item is not served during this daily window.",
+    ar: "اتركهما فارغين = متوفر دائمًا. وإلا فلن يُقدَّم العنصر خلال هذه الفترة يوميًا.",
+  },
   unavailableDatesLabel: { en: "Unavailable dates", ar: "تواريخ غير متاحة" },
   availableToggle: { en: "Item is available", ar: "العنصر متوفر" },
   itemAvailable: { en: "Available", ar: "متوفر" },
@@ -34,7 +38,7 @@ export const kitchenStrings = {
   notServedTime: { en: "Not served at this time", ar: "لا يُقدَّم في هذا الوقت" },
   invalidPrice: { en: "Enter a valid price", ar: "أدخل سعرًا صحيحًا" },
   availabilityHint: {
-    en: "Set both from and to hours, or clear both.",
-    ar: "اضبط ساعتي البداية والنهاية معًا، أو امسحهما.",
+    en: "Set both not-served hours, or clear both.",
+    ar: "اضبط ساعتي (لا يُقدَّم من / حتى) معًا، أو امسحهما.",
   },
 } as const

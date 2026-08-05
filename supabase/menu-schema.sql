@@ -23,25 +23,26 @@ create table if not exists public.menu (
   tag_en         text,
   tag_ar         text,
   modifiers      jsonb  not null default '[]'::jsonb,
-  available_from time,
-  available_to   time,
+  not_served_from time,
+  not_served_to   time,
   is_available   boolean not null default true,
   unavailable_dates date[] not null default '{}'::date[],
   created_at     timestamptz not null default now()
 );
 
 -- Availability controls
---   available_from / available_to use the customer's device local time
+--   not_served_from / not_served_to use the customer's device local time
 --   (format HH:MM:SS). Leave both NULL to make the item always available.
---   If available_to is earlier than available_from the window crosses
---   midnight, e.g. available_from '22:00:00' + available_to '06:00:00'
---   = available from 10 PM to 6 AM.
+--   When set, the item is NOT served inside that daily window and available
+--   outside it. If not_served_to is earlier than not_served_from the window
+--   crosses midnight, e.g. from '22:00:00' to '06:00:00' = not served from
+--   10 PM to 6 AM.
 --   is_available: manual on/off switch (e.g. out of stock / taken off menu).
 --   unavailable_dates: specific dates (YYYY-MM-DD) the item is not served.
-comment on column public.menu.available_from is
-  'Start of the daily orderable window (HH:MM:SS, local time). NULL = always available.';
-comment on column public.menu.available_to is
-  'End of the daily orderable window (HH:MM:SS, local time). If before available_from, the window crosses midnight.';
+comment on column public.menu.not_served_from is
+  'Start of the daily NOT-served window (HH:MM:SS, local time). NULL = always available.';
+comment on column public.menu.not_served_to is
+  'End of the daily NOT-served window (HH:MM:SS, local time). If before not_served_from, the window crosses midnight.';
 comment on column public.menu.is_available is
   'Manual availability switch; false hides the item from ordering.';
 comment on column public.menu.unavailable_dates is
@@ -67,7 +68,11 @@ create policy "anon can update menu" on public.menu
   for update to anon using (true) with check (true);
 
 -- ---------------------------------------------------------------------------
--- Upgrade an existing menu table created before the availability columns:
+-- Upgrade a menu table created with the older "available_from/available_to"
+-- columns: adds the new columns. If you had set available windows on any
+-- item, re-enter them as NOT-served windows (the meaning is inverted).
 -- ---------------------------------------------------------------------------
+alter table public.menu add column if not exists not_served_from time;
+alter table public.menu add column if not exists not_served_to time;
 alter table public.menu add column if not exists is_available boolean not null default true;
 alter table public.menu add column if not exists unavailable_dates date[] not null default '{}'::date[];

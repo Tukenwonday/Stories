@@ -47,8 +47,8 @@ interface ItemForm {
   descAr: string
   price: string
   image: string
-  availableFrom: string
-  availableTo: string
+  notServedFrom: string
+  notServedTo: string
   unavailableDates: string[]
   isAvailable: boolean
 }
@@ -64,8 +64,8 @@ function ItemRow({ item }: { item: MenuItem }) {
     descAr: item.description.ar,
     price: String(item.price),
     image: item.image ?? "",
-    availableFrom: item.availableFrom ? item.availableFrom.slice(0, 5) : "",
-    availableTo: item.availableTo ? item.availableTo.slice(0, 5) : "",
+    notServedFrom: item.notServedFrom ? item.notServedFrom.slice(0, 5) : "",
+    notServedTo: item.notServedTo ? item.notServedTo.slice(0, 5) : "",
     unavailableDates: [...(item.unavailableDates ?? [])],
     isAvailable: item.isAvailable !== false,
   }))
@@ -77,8 +77,8 @@ function ItemRow({ item }: { item: MenuItem }) {
   const reason = getUnavailableReason({
     isAvailable: form.isAvailable,
     unavailableDates: form.unavailableDates,
-    availableFrom: form.availableFrom || null,
-    availableTo: form.availableTo || null,
+    notServedFrom: form.notServedFrom || null,
+    notServedTo: form.notServedTo || null,
   })
   const status = reasonLabel(reason, "itemAvailable", lang)
 
@@ -106,7 +106,7 @@ function ItemRow({ item }: { item: MenuItem }) {
       setSaveError(t("invalidPrice"))
       return
     }
-    if (Boolean(form.availableFrom) !== Boolean(form.availableTo)) {
+    if (Boolean(form.notServedFrom) !== Boolean(form.notServedTo)) {
       setSaveError(t("availabilityHint"))
       return
     }
@@ -118,8 +118,8 @@ function ItemRow({ item }: { item: MenuItem }) {
       description_ar: form.descAr,
       price,
       image: form.image.trim() || null,
-      available_from: form.availableFrom || null,
-      available_to: form.availableTo || null,
+      not_served_from: form.notServedFrom || null,
+      not_served_to: form.notServedTo || null,
       unavailable_dates: form.unavailableDates,
       is_available: form.isAvailable,
     })
@@ -241,22 +241,23 @@ function ItemRow({ item }: { item: MenuItem }) {
               className={inputClass}
             />
           </Field>
-          <Field label={t("availableFromLabel")}>
+          <Field label={t("notServedFromLabel")}>
             <input
               type="time"
-              value={form.availableFrom}
-              onChange={(e) => patch({ availableFrom: e.target.value })}
+              value={form.notServedFrom}
+              onChange={(e) => patch({ notServedFrom: e.target.value })}
               className={inputClass}
             />
           </Field>
-          <Field label={t("availableToLabel")}>
+          <Field label={t("notServedToLabel")}>
             <input
               type="time"
-              value={form.availableTo}
-              onChange={(e) => patch({ availableTo: e.target.value })}
+              value={form.notServedTo}
+              onChange={(e) => patch({ notServedTo: e.target.value })}
               className={inputClass}
             />
           </Field>
+          <p className="text-[11px] leading-relaxed text-muted md:col-span-2">{t("notServedHint")}</p>
 
           <Field label={t("unavailableDatesLabel")} full>
             <div className="flex flex-wrap items-center gap-2">

@@ -33,8 +33,8 @@ interface MenuRow {
   tag_en: string | null
   tag_ar: string | null
   modifiers: ModifierGroup[]
-  available_from: string | null
-  available_to: string | null
+  not_served_from: string | null
+  not_served_to: string | null
   is_available: boolean
   unavailable_dates: string[] | null
 }
@@ -64,7 +64,7 @@ export async function fetchMenu(): Promise<MenuData> {
     supabase
       .from("menu")
       .select(
-        "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,available_from,available_to,is_available,unavailable_dates",
+        "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_from,not_served_to,is_available,unavailable_dates",
       ),
   ])
 
@@ -85,8 +85,8 @@ export async function fetchMenu(): Promise<MenuData> {
     image: r.image ?? undefined,
     tag: r.tag_en ? { en: r.tag_en, ar: r.tag_ar ?? "" } : undefined,
     modifiers: r.modifiers,
-    availableFrom: r.available_from ?? undefined,
-    availableTo: r.available_to ?? undefined,
+    notServedFrom: r.not_served_from ?? undefined,
+    notServedTo: r.not_served_to ?? undefined,
     isAvailable: r.is_available,
     unavailableDates: r.unavailable_dates ?? [],
   }))
@@ -104,8 +104,8 @@ export interface MenuUpdate {
   tag_en?: string | null
   tag_ar?: string | null
   modifiers?: ModifierGroup[]
-  available_from?: string | null
-  available_to?: string | null
+  not_served_from?: string | null
+  not_served_to?: string | null
   unavailable_dates?: string[]
   is_available?: boolean
 }

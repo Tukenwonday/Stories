@@ -29,10 +29,10 @@ export interface MenuItem {
   image?: string
   tag?: Localized
   modifiers?: ModifierGroup[]
-  /** Local-time availability window start (HH:MM:SS). Both set = restricted window. */
-  availableFrom?: string
-  /** Local-time availability window end (HH:MM:SS). */
-  availableTo?: string
+  /** Local-time window start the item is NOT served (HH:MM:SS). Both set = restricted. */
+  notServedFrom?: string
+  /** Local-time window end the item is NOT served (HH:MM:SS). */
+  notServedTo?: string
   /** Manual availability switch (false = off menu / out of stock). */
   isAvailable?: boolean
   /** Dates (YYYY-MM-DD) the item is not served on. */
