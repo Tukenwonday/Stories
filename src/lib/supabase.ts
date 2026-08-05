@@ -152,6 +152,46 @@ export async function deleteMenuItem(
   return { ok: true }
 }
 
+export interface MenuInsert {
+  id: string
+  category: string
+  title_en: string
+  title_ar: string
+  description_en: string
+  description_ar: string
+  price: number
+  image?: string | null
+  not_served_windows?: NotServedWindow[]
+  is_available?: boolean
+  modifiers?: ModifierGroup[]
+}
+
+/**
+ * Creates a new menu item from the kitchen dashboard.
+ */
+export async function insertMenuItem(
+  pin: string,
+  item: MenuInsert,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  const { error } = await supabase.rpc("insert_menu_item_secure", {
+    p_pin: pin,
+    p_id: item.id,
+    p_category: item.category,
+    p_title_en: item.title_en,
+    p_title_ar: item.title_ar,
+    p_description_en: item.description_en,
+    p_description_ar: item.description_ar,
+    p_price: item.price,
+    p_image: item.image ?? null,
+    p_not_served_windows: item.not_served_windows ?? [],
+    p_is_available: item.is_available ?? true,
+    p_modifiers: item.modifiers ?? [],
+  })
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
 export interface OrderPayload {
   table_number: string
   customer_name: string

@@ -3,7 +3,7 @@ import type { ChangeEvent, ReactNode } from "react"
 import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
-import { deleteMenuItem, fetchMenu, updateMenuItem } from "../lib/supabase"
+import { deleteMenuItem, fetchMenu, insertMenuItem, updateMenuItem } from "../lib/supabase"
 import { uploadMenuItemImage } from "../lib/upload"
 import type {
   Category,
@@ -319,15 +319,19 @@ function ModifiersEditor({
   )
 }
 
-/* ── Popup Modal for editing a single item ── */
+/* ── Popup Modal for editing or creating a single item ── */
 function ItemEditModal({
   item,
   onClose,
   onDeleted,
+  mode = "edit",
+  onCreated,
 }: {
   item: MenuItem
   onClose: () => void
   onDeleted: () => void
+  mode?: "edit" | "create"
+  onCreated?: () => void
 }) {
   const { lang } = useLang()
   const t = (k: keyof typeof kitchenStrings) => kitchenStrings[k][lang]
@@ -375,7 +379,7 @@ function ItemEditModal({
     }
     setSaving(true)
     const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
-    const res = await updateMenuItem(pin, item.id, {
+    const fields = {
       title_en: form.titleEn,
       title_ar: form.titleAr,
       description_en: form.descEn,
@@ -385,12 +389,17 @@ function ItemEditModal({
       not_served_windows: windows,
       is_available: form.isAvailable,
       modifiers: form.modifiers,
-    })
+    }
+    const res =
+      mode === "create"
+        ? await insertMenuItem(pin, { id: item.id, category: item.category, ...fields })
+        : await updateMenuItem(pin, item.id, fields)
     setSaving(false)
     if (res.ok) {
       setSaved(true)
       setTimeout(() => {
         setSaved(false)
+        if (mode === "create") onCreated?.()
         onClose()
       }, 800)
     } else {
@@ -462,11 +471,13 @@ function ItemEditModal({
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-6 py-4">
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-lg font-bold text-foreground">
-              {t("editItem")}
+              {t(mode === "create" ? "addItem" : "editItem")}
             </h2>
-            <p className="mt-0.5 truncate text-sm text-muted">
-              {item.title.en} — {item.title.ar}
-            </p>
+            {mode === "edit" && (
+              <p className="mt-0.5 truncate text-sm text-muted">
+                {item.title.en} — {item.title.ar}
+              </p>
+            )}
           </div>
           <button
             type="button"
@@ -679,46 +690,48 @@ function ItemEditModal({
           </section>
 
           {/* Section 4: Danger Zone */}
-          <section>
-            <SectionHeader title={t("dangerZone")} />
-            <div className="rounded-2xl border-2 border-red-500/30 bg-red-500/5 p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-base font-bold text-red-300">{t("deleteItem")}</p>
-                  <p className="mt-1 text-sm text-red-300/70">{t("deleteItemHint")}</p>
-                </div>
-                {confirmingDelete ? (
-                  <div className="flex shrink-0 items-center gap-2">
+          {mode === "edit" && (
+            <section>
+              <SectionHeader title={t("dangerZone")} />
+              <div className="rounded-2xl border-2 border-red-500/30 bg-red-500/5 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-base font-bold text-red-300">{t("deleteItem")}</p>
+                    <p className="mt-1 text-sm text-red-300/70">{t("deleteItemHint")}</p>
+                  </div>
+                  {confirmingDelete ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingDelete(false)}
+                        className="rounded-full border border-border bg-surface px-5 py-3 text-sm font-bold text-muted transition-colors active:bg-surface-2"
+                      >
+                        {t("cancel")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="flex items-center gap-2 rounded-full bg-red-500 px-5 py-3 text-sm font-bold text-white transition-colors active:bg-red-600 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {deleting ? t("deleting") : t("confirmDelete")}
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => setConfirmingDelete(false)}
-                      className="rounded-full border border-border bg-surface px-5 py-3 text-sm font-bold text-muted transition-colors active:bg-surface-2"
-                    >
-                      {t("cancel")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="flex items-center gap-2 rounded-full bg-red-500 px-5 py-3 text-sm font-bold text-white transition-colors active:bg-red-600 disabled:opacity-50"
+                      onClick={() => setConfirmingDelete(true)}
+                      className="flex shrink-0 items-center gap-2 rounded-full border-2 border-red-500/40 bg-red-500/10 px-5 py-3 text-sm font-bold text-red-300 transition-colors active:bg-red-500/20"
                     >
                       <Trash2 className="h-4 w-4" />
-                      {deleting ? t("deleting") : t("confirmDelete")}
+                      {t("deleteItem")}
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmingDelete(true)}
-                    className="flex shrink-0 items-center gap-2 rounded-full border-2 border-red-500/40 bg-red-500/10 px-5 py-3 text-sm font-bold text-red-300 transition-colors active:bg-red-500/20"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    {t("deleteItem")}
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
         </div>
 
         {/* ── Sticky Footer ── */}
@@ -847,6 +860,7 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
   const [data, setData] = useState<{ categories: Category[]; menu: MenuItem[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [creating, setCreating] = useState<MenuItem | null>(null)
 
   const load = useCallback(() => {
     fetchMenu()
@@ -905,10 +919,30 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
       <div className="mt-5 flex flex-col gap-6">
         {grouped.map((cat) => (
           <section key={cat.id}>
-            <h3 className="flex items-center gap-2 text-base font-bold uppercase tracking-widest text-foreground">
-              <span className="text-gold">{cat.label[lang]}</span>
-              <span className="text-sm font-medium text-muted">({cat.items.length})</span>
-            </h3>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="flex items-center gap-2 text-base font-bold uppercase tracking-widest text-foreground">
+                <span className="text-gold">{cat.label[lang]}</span>
+                <span className="text-sm font-medium text-muted">({cat.items.length})</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() =>
+                  setCreating({
+                    id: "new-" + uid(),
+                    category: cat.id,
+                    title: { en: "", ar: "" },
+                    description: { en: "", ar: "" },
+                    price: 0,
+                    modifiers: [],
+                    isAvailable: true,
+                  })
+                }
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-gold/40 px-4 py-2 text-sm font-bold text-gold transition-colors active:bg-gold/10"
+              >
+                <Plus className="h-4 w-4" />
+                {t("addItem")}
+              </button>
+            </div>
             <div className="mt-3 divide-y divide-border rounded-3xl border border-border bg-surface/40">
               {cat.items.map((item) => (
                 <ItemCard key={item.id} item={item} onDeleted={load} />
@@ -917,6 +951,16 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
           </section>
         ))}
       </div>
+
+      {creating && (
+        <ItemEditModal
+          item={creating}
+          mode="create"
+          onClose={() => setCreating(null)}
+          onDeleted={() => setCreating(null)}
+          onCreated={load}
+        />
+      )}
     </main>
   )
 }

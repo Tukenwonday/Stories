@@ -71,6 +71,7 @@ export const kitchenStrings = {
   confirmDelete: { en: "Delete", ar: "حذف" },
   deleting: { en: "Deleting…", ar: "جارٍ الحذف…" },
   editItem: { en: "Edit Item", ar: "تعديل العنصر" },
+  addItem: { en: "Add item", ar: "إضافة عنصر" },
   basicInfo: { en: "Basic Information", ar: "المعلومات الأساسية" },
   availability: { en: "Availability", ar: "التوفر" },
   dangerZone: { en: "Danger Zone", ar: "منطقة الخطر" },
