@@ -28,9 +28,9 @@ function isInWindow(w: NotServedWindow, now: Date): boolean {
   if (fromMin == null || toMin == null) return false
   const nowMin = now.getHours() * 60 + now.getMinutes()
   if (fromMin <= toMin) {
-    return nowMin >= fromMin && nowMin <= toMin
+    return nowMin >= fromMin && nowMin < toMin
   }
-  return nowMin >= fromMin || nowMin <= toMin
+  return nowMin >= fromMin || nowMin < toMin
 }
 
 function toDateKey(d: Date): string {
@@ -44,6 +44,6 @@ function toMinutes(t: string): number | null {
   const parts = t.split(":").map((p) => parseInt(p, 10))
   if (parts.length < 2 || parts.some((n) => Number.isNaN(n))) return null
   const hours = parts[0]
-  if (hours < 0 || hours > 23) return null
+  if (hours < 0 || hours > 24) return null
   return hours * 60 + parts[1]
 }

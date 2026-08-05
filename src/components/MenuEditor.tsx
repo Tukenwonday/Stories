@@ -1,20 +1,16 @@
 import { useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
-import { ArrowLeft, Check, ChevronDown, Plus, X } from "lucide-react"
+import { ArrowLeft, Check, ChevronDown } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
 import { fetchMenu, updateMenuItem } from "../lib/supabase"
 import type { Category, Lang, MenuItem, NotServedWindow } from "../types"
 import { getUnavailableReason, type UnavailableReason } from "../lib/availability"
 
+const HOURS = Array.from({ length: 24 }, (_, i) => i)
+
 const inputClass =
   "w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-gold"
-
-const chipClass =
-  "flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300"
-
-const smallAddClass =
-  "grid h-8 w-8 place-items-center rounded-full border border-border bg-surface-2 text-muted disabled:opacity-40"
 
 function Field({
   label,
@@ -46,12 +42,60 @@ function reasonLabel(
   return kitchenStrings[fallbackKey][lang]
 }
 
-function fmtTime(t: string): string {
-  const [h, m] = t.split(":").map((p) => parseInt(p, 10))
-  if (Number.isNaN(h) || Number.isNaN(m)) return t
-  const d = new Date()
-  d.setHours(h, m, 0, 0)
-  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+function pad(h: number): string {
+  return String(h).padStart(2, "0")
+}
+
+function toHour(t: string): number | null {
+  const p = parseInt(t.split(":")[0], 10)
+  return Number.isNaN(p) ? null : p
+}
+
+/** Convert a set of blocked hours into not-served windows (merged runs, midnight wrap). */
+function hoursToWindows(hours: number[]): NotServedWindow[] {
+  const set = new Set(hours)
+  if (set.size === 0) return []
+  const sorted = [...set].sort((a, b) => a - b)
+  const ranges: Array<[number, number]> = []
+  let start = sorted[0]
+  let prev = sorted[0]
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === prev + 1) {
+      prev = sorted[i]
+    } else {
+      ranges.push([start, prev])
+      start = sorted[i]
+      prev = sorted[i]
+    }
+  }
+  ranges.push([start, prev])
+
+  if (ranges.length > 1 && ranges[0][0] === 0 && ranges[ranges.length - 1][1] === 23) {
+    const last = ranges.pop()!
+    ranges[0] = [last[0], ranges[0][1]]
+  }
+
+  return ranges.map(([fromH, toH]) => ({
+    from: `${pad(fromH)}:00`,
+    to: `${pad(toH + 1)}:00`,
+  }))
+}
+
+/** Inverse of hoursToWindows: the blocked hours implied by stored windows. */
+function windowsToHours(windows: NotServedWindow[]): number[] {
+  const hours = new Set<number>()
+  for (const w of windows) {
+    const f = toHour(w.from)
+    const t = toHour(w.to)
+    if (f == null || t == null || f === t) continue
+    if (f < t) {
+      for (let h = f; h < t; h++) hours.add(h % 24)
+    } else {
+      for (let h = f; h < 24; h++) hours.add(h)
+      for (let h = 0; h < t; h++) hours.add(h)
+    }
+  }
+  return [...hours]
 }
 
 interface ItemForm {
@@ -61,8 +105,7 @@ interface ItemForm {
   descAr: string
   price: string
   image: string
-  windows: NotServedWindow[]
-  dates: string[]
+  hours: number[]
   isAvailable: boolean
 }
 
@@ -77,51 +120,28 @@ function ItemRow({ item }: { item: MenuItem }) {
     descAr: item.description.ar,
     price: String(item.price),
     image: item.image ?? "",
-    windows: (item.notServedWindows ?? []).map((w) => ({
-      from: w.from.slice(0, 5),
-      to: w.to.slice(0, 5),
-    })),
-    dates: [...(item.unavailableDates ?? [])],
+    hours: windowsToHours(item.notServedWindows ?? []),
     isAvailable: item.isAvailable !== false,
   }))
-  const [pendingFrom, setPendingFrom] = useState("")
-  const [pendingTo, setPendingTo] = useState("")
-  const [newDate, setNewDate] = useState("")
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  const windows = useMemo(() => hoursToWindows(form.hours), [form.hours])
+
   const reason = getUnavailableReason({
     isAvailable: form.isAvailable,
-    unavailableDates: form.dates,
-    notServedWindows: form.windows,
+    notServedWindows: windows,
   })
   const status = reasonLabel(reason, "itemAvailable", lang)
 
   const patch = (p: Partial<ItemForm>) => setForm((f) => ({ ...f, ...p }))
 
-  function addWindow() {
-    if (!pendingFrom || !pendingTo) return
-    patch({ windows: [...form.windows, { from: pendingFrom, to: pendingTo }] })
-    setPendingFrom("")
-    setPendingTo("")
-  }
-
-  function removeWindow(i: number) {
-    setForm((f) => ({ ...f, windows: f.windows.filter((_, idx) => idx !== i) }))
-  }
-
-  function addDate() {
-    if (!newDate) return
+  function toggleHour(h: number) {
     setForm((f) => ({
       ...f,
-      dates: f.dates.includes(newDate) ? f.dates : [...f.dates, newDate],
+      hours: f.hours.includes(h) ? f.hours.filter((x) => x !== h) : [...f.hours, h],
     }))
-    setNewDate("")
-  }
-
-  function removeDate(d: string) {
-    setForm((f) => ({ ...f, dates: f.dates.filter((x) => x !== d) }))
   }
 
   async function handleSave() {
@@ -139,8 +159,7 @@ function ItemRow({ item }: { item: MenuItem }) {
       description_ar: form.descAr,
       price,
       image: form.image.trim() || null,
-      not_served_windows: form.windows,
-      unavailable_dates: form.dates,
+      not_served_windows: windows,
       is_available: form.isAvailable,
     })
     setSaving(false)
@@ -168,9 +187,7 @@ function ItemRow({ item }: { item: MenuItem }) {
             <span className="ms-2 font-medium text-muted">{item.title.ar}</span>
           </p>
           <div className="mt-0.5 flex items-center gap-2">
-            <span
-              className={"text-[11px] font-bold " + (reason ? "text-red-400" : "text-gold")}
-            >
+            <span className={"text-[11px] font-bold " + (reason ? "text-red-400" : "text-gold")}>
               {status}
             </span>
             <span className="text-[11px] text-muted">{form.price}</span>
@@ -185,9 +202,7 @@ function ItemRow({ item }: { item: MenuItem }) {
           disabled={saving}
           className={
             "flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition-colors " +
-            (saved
-              ? "bg-gold/20 text-gold"
-              : "bg-gold text-bg active:bg-gold/90 disabled:opacity-50")
+            (saved ? "bg-gold/20 text-gold" : "bg-gold text-bg active:bg-gold/90 disabled:opacity-50")
           }
         >
           {saved ? <Check className="h-3.5 w-3.5" /> : null}
@@ -259,84 +274,60 @@ function ItemRow({ item }: { item: MenuItem }) {
           </Field>
 
           <Field label={t("timeWindowsLabel")} full>
-            <div className="flex flex-wrap items-center gap-2">
-              {form.windows.map((w, i) => (
-                <span key={i} className={chipClass}>
-                  {fmtTime(w.from)} – {fmtTime(w.to)}
-                  <button type="button" onClick={() => removeWindow(i)} aria-label="Remove">
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-              <div className="flex items-end gap-2">
-                <label className="flex flex-col">
-                  <span className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
-                    {t("fromLabel")}
-                  </span>
-                  <input
-                    type="time"
-                    value={pendingFrom}
-                    onChange={(e) => setPendingFrom(e.target.value)}
-                    className={inputClass + " w-32"}
-                  />
-                </label>
-                <label className="flex flex-col">
-                  <span className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
-                    {t("toLabel")}
-                  </span>
-                  <input
-                    type="time"
-                    value={pendingTo}
-                    onChange={(e) => setPendingTo(e.target.value)}
-                    className={inputClass + " w-32"}
-                  />
-                </label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] leading-relaxed text-muted">{t("notAvailableHint")}</span>
+              <div className="flex gap-1.5">
                 <button
                   type="button"
-                  onClick={addWindow}
-                  disabled={!pendingFrom || !pendingTo}
-                  className={
-                    "flex h-8 items-center gap-1 rounded-full bg-gold px-3 text-xs font-bold text-bg disabled:opacity-40"
-                  }
+                  onClick={() => patch({ hours: [] })}
+                  className="rounded-full border border-border bg-surface px-3 py-1 text-[11px] font-semibold text-muted transition-colors active:bg-surface-2"
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                  {t("addWindow")}
+                  {t("hoursReset")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => patch({ hours: [...HOURS] })}
+                  className="rounded-full border border-border bg-surface px-3 py-1 text-[11px] font-semibold text-muted transition-colors active:bg-surface-2"
+                >
+                  {t("hoursAllDay")}
                 </button>
               </div>
             </div>
-            <span className="mt-1.5 block text-[11px] leading-relaxed text-muted">
-              {t("notAvailableHint")}
-            </span>
-          </Field>
 
-          <Field label={t("unavailableDatesLabel")} full>
-            <div className="flex flex-wrap items-center gap-2">
-              {form.dates.map((d) => (
-                <span key={d} className={chipClass}>
-                  {d}
-                  <button type="button" onClick={() => removeDate(d)} aria-label="Remove">
-                    <X className="h-3 w-3" />
+            <div className="mt-2 grid grid-cols-6 gap-1.5 sm:grid-cols-8">
+              {HOURS.map((h) => {
+                const off = form.hours.includes(h)
+                return (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => toggleHour(h)}
+                    aria-pressed={off}
+                    className={
+                      "rounded-lg border py-2 text-xs font-bold transition-colors " +
+                      (off
+                        ? "border-red-500/60 bg-red-500/20 text-red-300"
+                        : "border-border bg-surface-2 text-muted active:bg-surface")
+                    }
+                  >
+                    {pad(h)}
                   </button>
-                </span>
-              ))}
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className={inputClass + " w-40"}
-                />
-                <button
-                  type="button"
-                  onClick={addDate}
-                  disabled={!newDate}
-                  aria-label={t("addDate")}
-                  className={smallAddClass}
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
+                )
+              })}
             </div>
+
+            {windows.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {windows.map((w, i) => (
+                  <span
+                    key={i}
+                    className="flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300"
+                  >
+                    {w.from.slice(0, 5)} – {w.to.slice(0, 5)}
+                  </span>
+                ))}
+              </div>
+            )}
           </Field>
 
           <label className="flex items-center gap-2 text-sm font-semibold text-foreground md:col-span-2">
