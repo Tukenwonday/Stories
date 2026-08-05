@@ -619,8 +619,8 @@ function ItemEditModal({
           </button>
         </div>
 
-        {/* ── Scrollable Content ── */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-8">
+         {/* ── Scrollable Content ── */}
+         <div className="no-scrollbar flex-1 overflow-y-auto px-6 py-5 space-y-8">
           {/* Section 1: Basic Info */}
           <section>
             <SectionHeader title={t("basicInfo")} />
