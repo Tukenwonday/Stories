@@ -567,13 +567,6 @@ function ItemEditModal({
                     {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
                   </div>
                 </div>
-
-                <input
-                  value={form.image}
-                  onChange={(e) => patch({ image: e.target.value })}
-                  placeholder="https://… or images/…"
-                  className={inputClass + " mt-2"}
-                />
               </Field>
             </div>
           </section>

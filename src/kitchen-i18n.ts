@@ -23,7 +23,7 @@ export const kitchenStrings = {
   titleLabel: { en: "Title", ar: "العنوان" },
   descriptionLabel: { en: "Description", ar: "الوصف" },
   priceLabel: { en: "Price", ar: "السعر" },
-  imageLabel: { en: "Image path", ar: "مسار الصورة" },
+  imageLabel: { en: "Photo", ar: "الصورة" },
   notAvailableLabel: { en: "Not available", ar: "غير متوفر" },
   timeWindowsLabel: { en: "Not served hours", ar: "ساعات عدم التقديم" },
   notAvailableHint: {
@@ -80,8 +80,8 @@ export const kitchenStrings = {
   uploadPhoto: { en: "Upload photo", ar: "رفع صورة" },
   uploading: { en: "Uploading…", ar: "جارٍ الرفع…" },
   uploadHint: {
-    en: "Photos are compressed automatically (~800px). Or paste a path or URL below.",
-    ar: "يتم ضغط الصور تلقائيًا (~800 بكسل). أو الصق مسارًا أو رابطًا أدناه.",
+    en: "Photos are compressed automatically (~800px).",
+    ar: "يتم ضغط الصور تلقائيًا (~800 بكسل).",
   },
   noImage: { en: "No image", ar: "لا توجد صورة" },
 } as const
