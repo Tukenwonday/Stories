@@ -276,8 +276,14 @@ export function buildOrderPayload(args: {
 
 /**
  * Sends the order to Supabase when configured, otherwise resolves in demo mode.
+ * The order is placed through the submit_order_secure RPC, which requires a
+ * valid table token and derives the table_number server-side, so the public
+ * anon key alone can never insert orders.
  */
-export async function submitOrder(payload: OrderPayload): Promise<{ ok: boolean; demo: boolean; error?: string }> {
+export async function submitOrder(
+  payload: OrderPayload,
+  token: string,
+): Promise<{ ok: boolean; demo: boolean; error?: string }> {
   if (!supabase) {
     console.log("[v0] Demo order (Supabase not configured):", payload)
     // Simulate network latency for a realistic UX in demo mode.
@@ -285,7 +291,13 @@ export async function submitOrder(payload: OrderPayload): Promise<{ ok: boolean;
     return { ok: true, demo: true }
   }
 
-  const { error } = await supabase.from("orders").insert(payload)
+  const { error } = await supabase.rpc("submit_order_secure", {
+    p_token: token,
+    p_customer_name: payload.customer_name,
+    p_notes: payload.notes,
+    p_items: payload.items,
+    p_total: payload.total,
+  })
   if (error) {
     console.log("[v0] Supabase insert error:", error.message)
     return { ok: false, demo: false, error: error.message }

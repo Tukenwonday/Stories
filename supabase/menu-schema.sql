@@ -66,9 +66,8 @@ create policy "categories public read" on public.categories for select using (tr
 drop policy if exists "menu public read" on public.menu;
 create policy "menu public read" on public.menu for select using (true);
 
--- Allow public insert on orders
-drop policy if exists "orders public insert" on public.orders;
-create policy "orders public insert" on public.orders for insert with check (true);
+-- Orders are inserted only via the submit_order_secure RPC (see order-rpc.sql).
+-- No insert policy here, so direct REST inserts are blocked by RLS.
 
 -- App config: no public access
 drop policy if exists "app_config no access" on public.app_config;

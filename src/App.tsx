@@ -28,6 +28,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
+  const tableToken = useMemo(() => getTableToken(), [])
 
   // Resolve the secret table token from the URL against the server.
   // Tokens live in a Supabase table behind RLS; the RPC only resolves a token
@@ -226,7 +227,7 @@ export default function App() {
         {selectedItem && (
           <MenuItemSheet item={selectedItem} onClose={() => setSelectedItem(null)} />
         )}
-        {cartOpen && <CartSheet tableNumber={tableNumber} onClose={() => setCartOpen(false)} />}
+        {cartOpen && <CartSheet tableNumber={tableNumber} token={tableToken} onClose={() => setCartOpen(false)} />}
       </div>
     </LangContext.Provider>
   )

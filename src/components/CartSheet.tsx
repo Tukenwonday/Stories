@@ -7,9 +7,11 @@ import { buildOrderPayload, submitOrder } from "../lib/supabase"
 
 export default function CartSheet({
   tableNumber,
+  token,
   onClose,
 }: {
   tableNumber: string
+  token: string
   onClose: () => void
 }) {
   const { lang, dir } = useLang()
@@ -32,7 +34,7 @@ export default function CartSheet({
     setServerError(null)
 
     const payload = buildOrderPayload({ tableNumber, customerName: name, notes, lines, total })
-    const res = await submitOrder(payload)
+    const res = await submitOrder(payload, token)
 
     setSubmitting(false)
     if (res.ok) {
