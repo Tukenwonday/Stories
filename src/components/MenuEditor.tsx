@@ -4,7 +4,7 @@ import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X }
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
 import { deleteMenuItem, fetchMenu, updateMenuItem } from "../lib/supabase"
-import { isImageUploadConfigured, uploadMenuItemImage } from "../lib/upload"
+import { uploadMenuItemImage } from "../lib/upload"
 import type {
   Category,
   Lang,
@@ -539,30 +539,28 @@ function ItemEditModal({
                   )}
 
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
-                    {isImageUploadConfigured ? (
-                      <label
-                        className={
-                          "inline-flex w-fit cursor-pointer items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition-colors " +
-                          (uploading
-                            ? "bg-gold/30 text-gold"
-                            : "bg-gold text-bg active:bg-gold/90")
-                        }
-                      >
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          disabled={uploading}
-                          onChange={onFileChange}
-                        />
-                        {uploading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <UploadCloud className="h-4 w-4" />
-                        )}
-                        {uploading ? t("uploading") : t("uploadPhoto")}
-                      </label>
-                    ) : null}
+                    <label
+                      className={
+                        "inline-flex w-fit cursor-pointer items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition-colors " +
+                        (uploading
+                          ? "bg-gold/30 text-gold"
+                          : "bg-gold text-bg active:bg-gold/90")
+                      }
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploading}
+                        onChange={onFileChange}
+                      />
+                      {uploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <UploadCloud className="h-4 w-4" />
+                      )}
+                      {uploading ? t("uploading") : t("uploadPhoto")}
+                    </label>
                     <p className="text-xs leading-relaxed text-muted">{t("uploadHint")}</p>
                     {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
                   </div>
