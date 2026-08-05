@@ -62,6 +62,9 @@ create policy "anon can read categories" on public.categories
 create policy "anon can update menu" on public.menu
   for update to anon using (true) with check (true);
 
+create policy "anon can delete menu" on public.menu
+  for delete to anon using (true);
+
 -- ---------------------------------------------------------------------------
 -- Upgrade a menu table created with the older not_served_from/not_served_to
 -- columns: moves any existing window into not_served_windows, then drops the

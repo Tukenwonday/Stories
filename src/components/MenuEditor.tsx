@@ -1,13 +1,24 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
-import { ArrowLeft, Check, ChevronDown } from "lucide-react"
+import { ArrowLeft, Check, ChevronDown, Plus, Trash2, X } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
-import { fetchMenu, updateMenuItem } from "../lib/supabase"
-import type { Category, Lang, MenuItem, NotServedWindow } from "../types"
+import { deleteMenuItem, fetchMenu, updateMenuItem } from "../lib/supabase"
+import type {
+  Category,
+  Lang,
+  MenuItem,
+  ModifierGroup,
+  ModifierOption,
+  NotServedWindow,
+} from "../types"
 import { getUnavailableReason, type UnavailableReason } from "../lib/availability"
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
+
+function uid(): string {
+  return Math.random().toString(36).slice(2, 10)
+}
 
 const inputClass =
   "w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-gold"
@@ -107,9 +118,210 @@ interface ItemForm {
   image: string
   hours: number[]
   isAvailable: boolean
+  modifiers: ModifierGroup[]
 }
 
-function ItemRow({ item }: { item: MenuItem }) {
+const chipClass =
+  "flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-muted transition-colors active:bg-surface-2"
+
+function ModifiersEditor({
+  groups,
+  onChange,
+  t,
+}: {
+  groups: ModifierGroup[]
+  onChange: (groups: ModifierGroup[]) => void
+  t: (k: keyof typeof kitchenStrings) => string
+}) {
+  function updateGroup(gi: number, patch: Partial<ModifierGroup>) {
+    onChange(groups.map((g, i) => (i === gi ? { ...g, ...patch } : g)))
+  }
+  function removeGroup(gi: number) {
+    onChange(groups.filter((_, i) => i !== gi))
+  }
+  function addGroup() {
+    onChange([
+      ...groups,
+      { id: uid(), label: { en: "", ar: "" }, type: "single", required: false, options: [] },
+    ])
+  }
+  function updateOption(gi: number, oi: number, patch: Partial<ModifierOption>) {
+    onChange(
+      groups.map((g, i) =>
+        i === gi
+          ? { ...g, options: g.options.map((o, j) => (j === oi ? { ...o, ...patch } : o)) }
+          : g,
+      ),
+    )
+  }
+  function removeOption(gi: number, oi: number) {
+    onChange(
+      groups.map((g, i) =>
+        i === gi ? { ...g, options: g.options.filter((_, j) => j !== oi) } : g,
+      ),
+    )
+  }
+  function addOption(gi: number) {
+    onChange(
+      groups.map((g, i) =>
+        i === gi
+          ? { ...g, options: [...g.options, { id: uid(), label: { en: "", ar: "" } }] }
+          : g,
+      ),
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+          {t("modifiersLabel")}
+        </span>
+        <button
+          type="button"
+          onClick={addGroup}
+          className="flex items-center gap-1 rounded-full bg-gold px-3 py-1.5 text-[11px] font-bold text-bg transition-colors active:bg-gold/90"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {t("addQuestion")}
+        </button>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted">{t("modifiersHint")}</p>
+
+      {groups.map((g, gi) => (
+        <div key={g.id} className="rounded-xl border border-border bg-surface-2/60 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-muted">
+              {t("modifierIdLabel")} {gi + 1}
+            </span>
+            <button
+              type="button"
+              onClick={() => removeGroup(gi)}
+              className="flex items-center gap-1 rounded-full border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-[11px] font-semibold text-red-300 transition-colors active:bg-red-500/20"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {t("removeQuestion")}
+            </button>
+          </div>
+
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <Field label={t("modifierIdLabel")}>
+              <input
+                value={g.id}
+                onChange={(e) => updateGroup(gi, { id: e.target.value })}
+                dir="ltr"
+                className={inputClass}
+              />
+            </Field>
+            <div className="hidden sm:block" />
+            <Field label={`${t("titleLabel")} (EN)`}>
+              <input
+                value={g.label.en}
+                onChange={(e) => updateGroup(gi, { label: { ...g.label, en: e.target.value } })}
+                className={inputClass}
+              />
+            </Field>
+            <Field label={`${t("titleLabel")} (AR)`}>
+              <input
+                value={g.label.ar}
+                onChange={(e) => updateGroup(gi, { label: { ...g.label, ar: e.target.value } })}
+                dir="rtl"
+                className={inputClass}
+              />
+            </Field>
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="flex rounded-full border border-border bg-surface p-0.5">
+              {(["single", "multi"] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => updateGroup(gi, { type })}
+                  className={
+                    "rounded-full px-3 py-1 text-[11px] font-bold transition-colors " +
+                    (g.type === type ? "bg-gold text-bg" : "text-muted active:bg-surface-2")
+                  }
+                >
+                  {t(type)}
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted">
+              <input
+                type="checkbox"
+                checked={g.required === true}
+                onChange={(e) => updateGroup(gi, { required: e.target.checked })}
+                className="h-3.5 w-3.5 rounded border-border accent-[#c5a059]"
+              />
+              {t("requiredToggle")}
+            </label>
+          </div>
+
+          <div className="mt-2.5 flex flex-col gap-1.5">
+            {g.options.map((o, oi) => (
+              <div key={o.id} className="flex flex-wrap items-center gap-1.5">
+                <input
+                  value={o.id}
+                  onChange={(e) => updateOption(gi, oi, { id: e.target.value })}
+                  dir="ltr"
+                  aria-label="Option ID"
+                  className="w-24 shrink-0 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-foreground outline-none placeholder:text-muted/70 focus:border-gold"
+                />
+                <input
+                  value={o.label.en}
+                  onChange={(e) => updateOption(gi, oi, { label: { ...o.label, en: e.target.value } })}
+                  placeholder={t("optionLabelEn")}
+                  aria-label={t("optionLabelEn")}
+                  className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-foreground outline-none placeholder:text-muted/70 focus:border-gold"
+                />
+                <input
+                  value={o.label.ar}
+                  onChange={(e) => updateOption(gi, oi, { label: { ...o.label, ar: e.target.value } })}
+                  placeholder={t("optionLabelAr")}
+                  dir="rtl"
+                  aria-label={t("optionLabelAr")}
+                  className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-foreground outline-none placeholder:text-muted/70 focus:border-gold"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={o.price ?? ""}
+                  onChange={(e) =>
+                    updateOption(gi, oi, {
+                      price: e.target.value === "" ? undefined : Number(e.target.value),
+                    })
+                  }
+                  placeholder={t("optionPriceLabel")}
+                  aria-label={t("optionPriceLabel")}
+                  className="w-20 shrink-0 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-foreground outline-none placeholder:text-muted/70 focus:border-gold"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeOption(gi, oi)}
+                  aria-label={t("removeOption")}
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border text-muted active:bg-surface"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            {g.options.length === 0 && <p className="text-[11px] text-muted">{t("noOptions")}</p>}
+            <button type="button" onClick={() => addOption(gi)} className={chipClass + " self-start"}>
+              <Plus className="h-3 w-3" />
+              {t("addOption")}
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {groups.length === 0 && <p className="text-[11px] text-muted">{t("noQuestions")}</p>}
+    </div>
+  )
+}
+
+function ItemRow({ item, onDeleted }: { item: MenuItem; onDeleted: () => void }) {
   const { lang } = useLang()
   const t = (k: keyof typeof kitchenStrings) => kitchenStrings[k][lang]
   const [open, setOpen] = useState(false)
@@ -122,10 +334,17 @@ function ItemRow({ item }: { item: MenuItem }) {
     image: item.image ?? "",
     hours: windowsToHours(item.notServedWindows ?? []),
     isAvailable: item.isAvailable !== false,
+    modifiers: (item.modifiers ?? []).map((g) => ({
+      ...g,
+      label: { ...g.label },
+      options: g.options.map((o) => ({ ...o, label: { ...o.label } })),
+    })),
   }))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const windows = useMemo(() => hoursToWindows(form.hours), [form.hours])
 
@@ -161,6 +380,7 @@ function ItemRow({ item }: { item: MenuItem }) {
       image: form.image.trim() || null,
       not_served_windows: windows,
       is_available: form.isAvailable,
+      modifiers: form.modifiers,
     })
     setSaving(false)
     if (res.ok) {
@@ -168,6 +388,19 @@ function ItemRow({ item }: { item: MenuItem }) {
       setTimeout(() => setSaved(false), 1600)
     } else {
       setSaveError(res.error ?? "Failed")
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true)
+    const res = await deleteMenuItem(item.id)
+    setDeleting(false)
+    if (res.ok) {
+      setSaveError(null)
+      onDeleted()
+    } else {
+      setSaveError(res.error ?? "Failed")
+      setConfirmingDelete(false)
     }
   }
 
@@ -339,6 +572,45 @@ function ItemRow({ item }: { item: MenuItem }) {
             />
             {t("availableToggle")}
           </label>
+
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-2/40 p-3 md:col-span-2">
+            <ModifiersEditor
+              groups={form.modifiers}
+              onChange={(modifiers) => patch({ modifiers })}
+              t={t}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-border pt-3 md:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] text-muted">{t("deleteItemHint")}</span>
+              {confirmingDelete ? (
+                <div className="flex shrink-0 items-center gap-2">
+                  <button type="button" onClick={() => setConfirmingDelete(false)} className={chipClass}>
+                    {t("cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="flex items-center gap-1 rounded-full bg-red-500 px-3.5 py-1.5 text-[11px] font-bold text-white transition-colors active:bg-red-600 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {deleting ? t("deleting") : t("confirmDelete")}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  className="flex shrink-0 items-center gap-1 rounded-full border border-red-500/40 bg-red-500/10 px-3.5 py-1.5 text-[11px] font-bold text-red-300 transition-colors active:bg-red-500/20"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {t("deleteItem")}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -353,10 +625,11 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     fetchMenu()
       .then((d) => {
         setData(d)
+        setError(null)
         setLoading(false)
       })
       .catch((e: unknown) => {
@@ -365,6 +638,10 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
         setLoading(false)
       })
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   const grouped = useMemo(() => {
     if (!data) return []
@@ -411,7 +688,7 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
             </h3>
             <div className="mt-2 divide-y divide-border rounded-2xl border border-border bg-surface/40">
               {cat.items.map((item) => (
-                <ItemRow key={item.id} item={item} />
+                <ItemRow key={item.id} item={item} onDeleted={load} />
               ))}
             </div>
           </section>

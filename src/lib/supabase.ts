@@ -123,6 +123,18 @@ export async function updateMenuItem(
   return { ok: true }
 }
 
+/**
+ * Permanently removes a menu item from the database.
+ */
+export async function deleteMenuItem(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  const { error } = await supabase.from("menu").delete().eq("id", id)
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
 export interface OrderPayload {
   table_number: string
   customer_name: string
