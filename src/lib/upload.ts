@@ -12,10 +12,16 @@ export interface UploadResult {
 
 /**
  * Compresses a photo in the browser, then uploads it through the Cloudflare
- * Worker (`VITE_IMAGE_UPLOAD_URL`), which forwards it to ImageKit with the
- * private key kept server-side. Returns the public ImageKit URL for the menu row.
+ * Worker (`VITE_IMAGE_UPLOAD_URL`), which commits it to the GitHub repo
+ * (`public/photos`) so it is served from this site's own build output. When
+ * `oldImage` points at an existing `/photos/...` file, the Worker deletes it in
+ * the same commit. Returns the public image URL for the menu row.
  */
-export async function uploadMenuItemImage(file: File, itemId: string): Promise<UploadResult> {
+export async function uploadMenuItemImage(
+  file: File,
+  itemId: string,
+  oldImage?: string,
+): Promise<UploadResult> {
   if (!UPLOAD_URL) {
     return { ok: false, error: "Image upload is not configured" }
   }
@@ -24,6 +30,7 @@ export async function uploadMenuItemImage(file: File, itemId: string): Promise<U
     const form = new FormData()
     form.append("file", blob, `menu-${Date.now()}.${ext}`)
     form.append("itemId", itemId)
+    if (oldImage) form.append("oldImage", oldImage)
 
     const res = await fetch(UPLOAD_URL, { method: "POST", body: form })
     const data = await res.json().catch(() => null)

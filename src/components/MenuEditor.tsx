@@ -400,7 +400,7 @@ function ItemEditModal({
   async function handleUploadImage(file: File) {
     setUploadError(null)
     setUploading(true)
-    const res = await uploadMenuItemImage(file, item.id)
+    const res = await uploadMenuItemImage(file, item.id, form.image)
     setUploading(false)
     if (res.ok && res.url) {
       patch({ image: res.url })

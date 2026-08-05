@@ -80,8 +80,8 @@ export const kitchenStrings = {
   uploadPhoto: { en: "Upload photo", ar: "رفع صورة" },
   uploading: { en: "Uploading…", ar: "جارٍ الرفع…" },
   uploadHint: {
-    en: "Photos are compressed automatically (~800px).",
-    ar: "يتم ضغط الصور تلقائيًا (~800 بكسل).",
+    en: "Photos are compressed automatically (~800px). Replacing a photo removes the old one.",
+    ar: "يتم ضغط الصور تلقائيًا (~800 بكسل). استبدال الصورة يحذف القديمة تلقائيًا.",
   },
   noImage: { en: "No image", ar: "لا توجد صورة" },
 } as const
