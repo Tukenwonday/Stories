@@ -1,4 +1,3 @@
-const UPLOAD_ENDPOINT = "https://upload.imagekit.io/api/v1/files/upload"
 const MAX_BYTES = 5 * 1024 * 1024
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +12,13 @@ function json(body, status, headers = {}) {
   })
 }
 
+function toBase64(buffer) {
+  const bytes = new Uint8Array(buffer)
+  let bin = ""
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  return btoa(bin)
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -21,9 +27,13 @@ export default {
     if (request.method !== "POST") {
       return json({ ok: false, error: "Method not allowed" }, 405)
     }
-    if (!env.IMAGEKIT_PRIVATE_KEY) {
-      return json({ ok: false, error: "ImageKit is not configured" }, 500)
+    if (!env.GITHUB_TOKEN) {
+      return json({ ok: false, error: "GitHub is not configured" }, 500)
     }
+
+    const repo = env.GITHUB_REPO || "Tukenwonday/Stories"
+    const branch = env.GITHUB_BRANCH || "main"
+    const dir = env.GITHUB_PHOTO_DIR || "public/photos"
 
     let form
     try {
@@ -48,26 +58,31 @@ export default {
     const safeId = itemId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "misc"
     const ext = (file.type.split("/")[1] || "webp").replace(/[^a-z0-9]/gi, "")
     const fileName = `${safeId}-${Date.now()}.${ext}`
-
-    const upstream = new FormData()
-    upstream.append("file", file, fileName)
-    upstream.append("fileName", fileName)
-    upstream.append("folder", "menu")
-    upstream.append("useUniqueFileName", "true")
-
-    const basic = "Basic " + btoa(`${env.IMAGEKIT_PRIVATE_KEY}:`)
+    const path = `${dir}/${fileName}`
+    const content = toBase64(await file.arrayBuffer())
 
     try {
-      const res = await fetch(UPLOAD_ENDPOINT, {
-        method: "POST",
-        headers: { Authorization: basic, Accept: "application/json" },
-        body: upstream,
+      const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "User-Agent": "menu-image-store",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: `Upload menu photo ${fileName}`,
+          content,
+          branch,
+        }),
       })
       const data = await res.json().catch(() => null)
-      if (!res.ok || !data?.url) {
+      if (!res.ok) {
         return json({ ok: false, error: data?.message || "Upload failed" }, res.status)
       }
-      return json({ ok: true, url: data.url })
+      const url = env.SITE_URL ? `${env.SITE_URL}/photos/${fileName}` : `/photos/${fileName}`
+      return json({ ok: true, url })
     } catch {
       return json({ ok: false, error: "Upload failed" }, 502)
     }
