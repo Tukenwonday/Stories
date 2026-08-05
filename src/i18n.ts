@@ -81,12 +81,6 @@ export const strings = {
     en: "Location check failed. You must be at the restaurant to place an order.",
     ar: "فشل التحقق من الموقع. يجب أن تكون داخل المطعم لتقديم طلبك.",
   },
-  locationBlocked: { en: "Location is blocked for this site", ar: "الموقع محظور لهذا الموقع الإلكتروني" },
-  locationBlockedHint: {
-    en: "Tap the padlock icon in the address bar → Site settings → Location → Ask, then come back.",
-    ar: "انقر على أيقونة القفل في شريط العنوان ← إعدادات الموقع ← الموقع ← اسأل، ثم عد.",
-  },
-  locationEnabled: { en: "I've enabled it", ar: "لقد فعّلتُ الموقع" },
 } as const
 
 export function t(key: keyof typeof strings, lang: Lang): string {
