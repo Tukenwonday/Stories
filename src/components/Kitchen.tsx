@@ -9,6 +9,50 @@ import MenuEditor from "./MenuEditor"
 /** Change this PIN before going live. */
 const KITCHEN_PIN = "2026"
 
+let audioCtx: AudioContext | null = null
+
+function ensureAudio(): AudioContext | null {
+  try {
+    if (!audioCtx) {
+      const Ctor = window.AudioContext ?? (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (!Ctor) return null
+      audioCtx = new Ctor()
+    }
+    if (audioCtx.state === "suspended") void audioCtx.resume()
+    return audioCtx
+  } catch {
+    return null
+  }
+}
+
+/** Two-Tone Chime (C6 then E6) — plays when a new order arrives. */
+function playNewOrderChime() {
+  const ctx = ensureAudio()
+  if (!ctx) return
+  try {
+    const t0 = ctx.currentTime
+    const tones: Array<[freq: number, delay: number, dur: number]> = [
+      [1046.5, 0, 0.5],
+      [1318.5, 0.16, 0.7],
+    ]
+    for (const [freq, delay, dur] of tones) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = "triangle"
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.0001, t0 + delay)
+      gain.gain.linearRampToValueAtTime(0.4, t0 + delay + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + dur)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(t0 + delay)
+      osc.stop(t0 + delay + dur + 0.1)
+    }
+  } catch {
+    // ignore audio errors
+  }
+}
+
 interface KitchenOrderItem {
   itemId: string
   title: string
@@ -46,7 +90,7 @@ export default function Kitchen() {
   }, [lang, dir])
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30000)
+    const id = setInterval(() => setNow(Date.now()), 5000)
     return () => clearInterval(id)
   }, [])
 
@@ -54,6 +98,7 @@ export default function Kitchen() {
 
   function unlock() {
     if (pin === KITCHEN_PIN) {
+      ensureAudio()
       sessionStorage.setItem("kitchenAuthed", "1")
       setAuthed(true)
       setPinError(false)
@@ -96,6 +141,7 @@ export default function Kitchen() {
         (payload) => {
           const row = payload.new as KitchenOrder
           setOrders((prev) => [row, ...prev.filter((o) => o.id !== row.id)].slice(0, 50))
+          playNewOrderChime()
         },
       )
       .on(
@@ -247,7 +293,7 @@ export default function Kitchen() {
           ) : (
             <ol className="divide-y divide-border">
               {orders.map((o) => {
-                const isNew = now - new Date(o.created_at).getTime() < 60000
+                const isNew = now - new Date(o.created_at).getTime() < 15000
                 return (
                   <li
                     key={o.id}

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stories — New Order Sound Preview</title>
+<style>
+  :root {
+    --bg: #0f0e0a;
+    --surface: #1a1813;
+    --surface-2: #221f18;
+    --border: #2b2820;
+    --gold: #c5a059;
+    --muted: #a8a294;
+    --fg: #f5efe0;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 520px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, #d9b45f, #8a6a2e);
+    display: grid; place-items: center;
+    font-size: 18px; font-weight: 800; color: #0f0e0a;
+  }
+  h1 { font-size: 15px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); }
+  .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .desc { font-size: 13px; color: var(--muted); margin-top: 18px; line-height: 1.5; }
+  .sounds { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .sound {
+    display: flex; align-items: center; gap: 14px;
+    width: 100%; padding: 14px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--fg);
+    font: inherit; font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    transition: border-color .15s, transform .05s;
+    text-align: left;
+  }
+  .sound:hover { border-color: var(--gold); }
+  .sound:active { transform: scale(.98); }
+  .sound .icon {
+    width: 40px; height: 40px; flex-shrink: 0;
+    border-radius: 50%;
+    background: rgba(197,160,89,.15);
+    border: 1px solid rgba(197,160,89,.35);
+    display: grid; place-items: center;
+    font-size: 17px;
+  }
+  .sound .name { flex: 1; }
+  .sound .play { color: var(--gold); font-size: 12px; letter-spacing: .08em; }
+  .sound.sel { border-color: var(--gold); background: rgba(197,160,89,.12); }
+  .sound.sel .badge { display: inline-block; }
+  .badge {
+    display: none;
+    background: var(--gold); color: #0f0e0a;
+    font-size: 10px; font-weight: 800; letter-spacing: .1em;
+    padding: 3px 8px; border-radius: 999px;
+  }
+  .foot {
+    margin-top: 20px; padding-top: 18px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .test {
+    flex: 1;
+    padding: 14px 16px;
+    background: var(--gold); color: #0f0e0a;
+    border: none; border-radius: 999px;
+    font: inherit; font-size: 14px; font-weight: 800;
+    cursor: pointer;
+    transition: transform .05s;
+  }
+  .test:active { transform: scale(.97); }
+  .vol { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .vol input { width: 80px; accent-color: var(--gold); }
+  .hint { margin-top: 16px; font-size: 11px; color: var(--muted); text-align: center; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <div class="logo">S</div>
+      <div>
+        <h1>New Order Sound</h1>
+        <div class="sub">Pick the one that works best for the kitchen</div>
+      </div>
+    </div>
+
+    <p class="desc">Tap each button to hear it. Choose your favourite, then press
+    <strong style="color:var(--fg)">Test as new order</strong> to hear it the way it would
+    sound when an order arrives.</p>
+
+    <div class="sounds" id="sounds"></div>
+
+    <div class="foot">
+      <div class="vol">
+        Volume
+        <input id="vol" type="range" min="0" max="1" step="0.05" value="0.5">
+      </div>
+      <button class="test" id="test">Test as new order</button>
+    </div>
+
+    <div class="hint">Everything is generated with the browser — no files needed.</div>
+  </div>
+
+<script>
+  const sounds = [
+    { id: "ding",      icon: "🔔", name: "Classic Ding",      fn: soundDing },
+    { id: "chime",     icon: "🎵", name: "Two-Tone Chime",    fn: soundChime },
+    { id: "pop",       icon: "💥", name: "Soft Pop",          fn: soundPop },
+    { id: "marimba",   icon: "🪵", name: "Warm Marimba",      fn: soundMarimba },
+    { id: "dingdong",  icon: "🏠", name: "Ding-Dong",         fn: soundDingDong },
+  ];
+
+  let selected = "ding";
+  let ctx = null;
+
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+
+  function tone(freq, delay, dur, type, gain) {
+    const c = getCtx();
+    const t = c.currentTime + delay;
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    const vol = document.getElementById("vol").value;
+    osc.type = type;
+    osc.frequency.value = freq;
+    osc.connect(g);
+    g.connect(c.destination);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(gain * vol, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.start(t);
+    osc.stop(t + dur + 0.1);
+  }
+
+  function soundDing() {
+    tone(880,  0,    0.8, "sine",     0.35);
+    tone(1760, 0.02, 0.6, "sine",     0.12);
+    tone(880,  0,    0.8, "triangle", 0.15);
+  }
+  function soundChime() {
+    tone(1046.5, 0,    0.5, "triangle", 0.30);
+    tone(1318.5, 0.16, 0.7, "triangle", 0.25);
+  }
+  function soundPop() {
+    tone(420, 0,    0.12, "square",   0.18);
+    tone(840, 0.02, 0.1,  "triangle", 0.18);
+  }
+  function soundMarimba() {
+    tone(523.25, 0,    0.5,  "sine", 0.32);
+    tone(1046.5, 0,    0.35, "sine", 0.12);
+    tone(392,    0.12, 0.45, "sine", 0.18);
+  }
+  function soundDingDong() {
+    tone(660, 0,    0.7, "sine", 0.30);
+    tone(494, 0.35, 1.0, "sine", 0.30);
+  }
+
+  const list = document.getElementById("sounds");
+  sounds.forEach((s) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "sound" + (s.id === selected ? " sel" : "");
+    btn.dataset.id = s.id;
+    btn.innerHTML =
+      '<span class="icon">' + s.icon + '</span>' +
+      '<span class="name">' + s.name + '</span>' +
+      '<span class="badge">PICKED</span>' +
+      '<span class="play">PLAY ▸</span>';
+    btn.addEventListener("click", () => {
+      selected = s.id;
+      list.querySelectorAll(".sound").forEach((b) => b.classList.toggle("sel", b.dataset.id === s.id));
+      s.fn();
+    });
+    list.appendChild(btn);
+  });
+
+  document.getElementById("test").addEventListener("click", () => {
+    const s = sounds.find((x) => x.id === selected);
+    if (!s) return;
+    setTimeout(() => s.fn(), 300); // mimic a short delay like a real notification
+  });
+</script>
+</body>
+</html>
