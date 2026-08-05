@@ -201,7 +201,7 @@ function ModifiersEditor({
         <div key={g.id} className="rounded-2xl border border-border bg-surface-2/60 p-4">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-bold uppercase tracking-wide text-muted">
-              {t("modifierIdLabel")} {gi + 1}
+              {t("addQuestion").split(" ")[0]} {gi + 1}
             </span>
             <button
               type="button"
@@ -214,15 +214,6 @@ function ModifiersEditor({
           </div>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Field label={t("modifierIdLabel")}>
-              <input
-                value={g.id}
-                onChange={(e) => updateGroup(gi, { id: e.target.value })}
-                dir="ltr"
-                className={inputClass}
-              />
-            </Field>
-            <div className="hidden sm:block" />
             <Field label={`${t("titleLabel")} (EN)`}>
               <input
                 value={g.label.en}
@@ -270,13 +261,6 @@ function ModifiersEditor({
           <div className="mt-4 flex flex-col gap-2.5">
             {g.options.map((o, oi) => (
               <div key={o.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-2.5">
-                <input
-                  value={o.id}
-                  onChange={(e) => updateOption(gi, oi, { id: e.target.value })}
-                  dir="ltr"
-                  aria-label="Option ID"
-                  className="w-28 shrink-0 rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-gold"
-                />
                 <input
                   value={o.label.en}
                   onChange={(e) => updateOption(gi, oi, { label: { ...o.label, en: e.target.value } })}
