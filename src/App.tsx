@@ -11,19 +11,8 @@ import MenuItemSheet from "./components/MenuItemSheet"
 import CartButton from "./components/CartButton"
 import CartSheet from "./components/CartSheet"
 
-const TABLE_TOKEN_KEY = "stories_table_token"
-
 function getTableToken(): string {
-  const stored = localStorage.getItem(TABLE_TOKEN_KEY)
-  if (stored) return stored
-  const urlToken = new URLSearchParams(window.location.search).get("table")
-  if (urlToken) {
-    localStorage.setItem(TABLE_TOKEN_KEY, urlToken)
-    const url = new URL(window.location.href)
-    url.searchParams.delete("table")
-    window.history.replaceState({}, "", url)
-  }
-  return urlToken ?? ""
+  return new URLSearchParams(window.location.search).get("table") ?? ""
 }
 
 export default function App() {
