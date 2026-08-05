@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
-import { ArrowLeft, Check, ChevronDown, Plus, X } from "lucide-react"
+import { ArrowLeft, Check, ChevronDown } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
 import { fetchMenu, updateMenuItem } from "../lib/supabase"
@@ -40,6 +40,37 @@ function reasonLabel(
   return kitchenStrings[fallbackKey][lang]
 }
 
+interface ParsedNotAvailable {
+  from: string | null
+  to: string | null
+  dates: string[]
+  error?: string
+}
+
+function parseNotAvailable(text: string): ParsedNotAvailable {
+  const result: ParsedNotAvailable = { from: null, to: null, dates: [] }
+  const tokens = text
+    .split(/[,;\n]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  for (const token of tokens) {
+    const range = token.match(/^(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})$/)
+    if (range) {
+      result.from = `${range[1].padStart(2, "0")}:${range[2]}`
+      result.to = `${range[3].padStart(2, "0")}:${range[4]}`
+      continue
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(token)) {
+      if (!result.dates.includes(token)) result.dates.push(token)
+      continue
+    }
+    result.error = `"${token}"`
+    return result
+  }
+  return result
+}
+
 interface ItemForm {
   titleEn: string
   titleAr: string
@@ -47,9 +78,7 @@ interface ItemForm {
   descAr: string
   price: string
   image: string
-  notServedFrom: string
-  notServedTo: string
-  unavailableDates: string[]
+  notAvailable: string
   isAvailable: boolean
 }
 
@@ -57,47 +86,37 @@ function ItemRow({ item }: { item: MenuItem }) {
   const { lang } = useLang()
   const t = (k: keyof typeof kitchenStrings) => kitchenStrings[k][lang]
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState<ItemForm>(() => ({
-    titleEn: item.title.en,
-    titleAr: item.title.ar,
-    descEn: item.description.en,
-    descAr: item.description.ar,
-    price: String(item.price),
-    image: item.image ?? "",
-    notServedFrom: item.notServedFrom ? item.notServedFrom.slice(0, 5) : "",
-    notServedTo: item.notServedTo ? item.notServedTo.slice(0, 5) : "",
-    unavailableDates: [...(item.unavailableDates ?? [])],
-    isAvailable: item.isAvailable !== false,
-  }))
-  const [newDate, setNewDate] = useState("")
+  const [form, setForm] = useState<ItemForm>(() => {
+    const windowStr =
+      item.notServedFrom && item.notServedTo
+        ? `${item.notServedFrom.slice(0, 5)}-${item.notServedTo.slice(0, 5)}`
+        : ""
+    const dates = item.unavailableDates ?? []
+    return {
+      titleEn: item.title.en,
+      titleAr: item.title.ar,
+      descEn: item.description.en,
+      descAr: item.description.ar,
+      price: String(item.price),
+      image: item.image ?? "",
+      notAvailable: [windowStr, ...dates].filter(Boolean).join(", "),
+      isAvailable: item.isAvailable !== false,
+    }
+  })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  const preview = parseNotAvailable(form.notAvailable)
   const reason = getUnavailableReason({
     isAvailable: form.isAvailable,
-    unavailableDates: form.unavailableDates,
-    notServedFrom: form.notServedFrom || null,
-    notServedTo: form.notServedTo || null,
+    unavailableDates: preview.dates,
+    notServedFrom: preview.from,
+    notServedTo: preview.to,
   })
   const status = reasonLabel(reason, "itemAvailable", lang)
 
   const patch = (p: Partial<ItemForm>) => setForm((f) => ({ ...f, ...p }))
-
-  function toggleDate(d: string) {
-    setForm((f) => ({ ...f, unavailableDates: f.unavailableDates.filter((x) => x !== d) }))
-  }
-
-  function addDate() {
-    if (!newDate) return
-    setForm((f) => ({
-      ...f,
-      unavailableDates: f.unavailableDates.includes(newDate)
-        ? f.unavailableDates
-        : [...f.unavailableDates, newDate],
-    }))
-    setNewDate("")
-  }
 
   async function handleSave() {
     setSaveError(null)
@@ -106,8 +125,9 @@ function ItemRow({ item }: { item: MenuItem }) {
       setSaveError(t("invalidPrice"))
       return
     }
-    if (Boolean(form.notServedFrom) !== Boolean(form.notServedTo)) {
-      setSaveError(t("availabilityHint"))
+    const parsed = parseNotAvailable(form.notAvailable)
+    if (parsed.error) {
+      setSaveError(t("invalidNotAvailable") + parsed.error)
       return
     }
     setSaving(true)
@@ -118,9 +138,9 @@ function ItemRow({ item }: { item: MenuItem }) {
       description_ar: form.descAr,
       price,
       image: form.image.trim() || null,
-      not_served_from: form.notServedFrom || null,
-      not_served_to: form.notServedTo || null,
-      unavailable_dates: form.unavailableDates,
+      not_served_from: parsed.from,
+      not_served_to: parsed.to,
+      unavailable_dates: parsed.dates,
       is_available: form.isAvailable,
     })
     setSaving(false)
@@ -241,54 +261,16 @@ function ItemRow({ item }: { item: MenuItem }) {
               className={inputClass}
             />
           </Field>
-          <Field label={t("notServedFromLabel")}>
+          <Field label={t("notAvailableLabel")} full>
             <input
-              type="time"
-              value={form.notServedFrom}
-              onChange={(e) => patch({ notServedFrom: e.target.value })}
+              value={form.notAvailable}
+              onChange={(e) => patch({ notAvailable: e.target.value })}
+              placeholder={t("notAvailablePlaceholder")}
               className={inputClass}
             />
-          </Field>
-          <Field label={t("notServedToLabel")}>
-            <input
-              type="time"
-              value={form.notServedTo}
-              onChange={(e) => patch({ notServedTo: e.target.value })}
-              className={inputClass}
-            />
-          </Field>
-          <p className="text-[11px] leading-relaxed text-muted md:col-span-2">{t("notServedHint")}</p>
-
-          <Field label={t("unavailableDatesLabel")} full>
-            <div className="flex flex-wrap items-center gap-2">
-              {form.unavailableDates.map((d) => (
-                <span
-                  key={d}
-                  className="flex items-center gap-1 rounded-full border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-300"
-                >
-                  {d}
-                  <button type="button" onClick={() => toggleDate(d)} aria-label="Remove date">
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className={inputClass + " w-40"}
-                />
-                <button
-                  type="button"
-                  onClick={addDate}
-                  aria-label="Add date"
-                  className="grid h-8 w-8 place-items-center rounded-full border border-border bg-surface-2 text-muted"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+            <span className="mt-1 block text-[11px] leading-relaxed text-muted">
+              {t("notAvailableHint")}
+            </span>
           </Field>
 
           <label className="flex items-center gap-2 text-sm font-semibold text-foreground md:col-span-2">

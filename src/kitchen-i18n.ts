@@ -24,12 +24,13 @@ export const kitchenStrings = {
   descriptionLabel: { en: "Description", ar: "الوصف" },
   priceLabel: { en: "Price", ar: "السعر" },
   imageLabel: { en: "Image path", ar: "مسار الصورة" },
-  notServedFromLabel: { en: "Not served from", ar: "لا يُقدَّم من" },
-  notServedToLabel: { en: "Not served to", ar: "لا يُقدَّم حتى" },
-  notServedHint: {
-    en: "Leave both empty = always available. Otherwise the item is not served during this daily window.",
-    ar: "اتركهما فارغين = متوفر دائمًا. وإلا فلن يُقدَّم العنصر خلال هذه الفترة يوميًا.",
+  notAvailableLabel: { en: "Not available", ar: "غير متوفر" },
+  notAvailablePlaceholder: { en: "e.g. 14:00-18:00, 2026-08-10", ar: "مثال: 14:00-18:00, 2026-08-10" },
+  notAvailableHint: {
+    en: "Leave empty = always available. Type HH:MM-HH:MM for a daily window, dates as YYYY-MM-DD, separated by commas.",
+    ar: "اتركه فارغًا = متوفر دائمًا. اكتب HH:MM-HH:MM لفترة يومية والتواريخ بصيغة YYYY-MM-DD مفصولة بفواصل.",
   },
+  invalidNotAvailable: { en: "Not understood: ", ar: "غير مفهوم: " },
   unavailableDatesLabel: { en: "Unavailable dates", ar: "تواريخ غير متاحة" },
   availableToggle: { en: "Item is available", ar: "العنصر متوفر" },
   itemAvailable: { en: "Available", ar: "متوفر" },
@@ -37,8 +38,4 @@ export const kitchenStrings = {
   notServedToday: { en: "Not served today", ar: "لا يُقدَّم اليوم" },
   notServedTime: { en: "Not served at this time", ar: "لا يُقدَّم في هذا الوقت" },
   invalidPrice: { en: "Enter a valid price", ar: "أدخل سعرًا صحيحًا" },
-  availabilityHint: {
-    en: "Set both not-served hours, or clear both.",
-    ar: "اضبط ساعتي (لا يُقدَّم من / حتى) معًا، أو امسحهما.",
-  },
 } as const
