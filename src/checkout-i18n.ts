@@ -36,6 +36,8 @@ export const checkoutStrings = {
     en: "This table is clear and ready for new guests.",
     ar: "هذه الطاولة فارغة وجاهزة لاستقبال الضيوف.",
   },
+  markPaid: { en: "Mark paid", ar: "تم الدفع" },
+  paid: { en: "Paid", ar: "مدفوع" },
 } as const
 
 export function t(key: keyof typeof checkoutStrings, lang: "en" | "ar"): string {

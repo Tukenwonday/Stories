@@ -377,3 +377,16 @@ export async function clearTableOrders(
   if (error) return { ok: false, error: error.message }
   return { ok: true }
 }
+
+export async function markOrderPaid(
+  pin: string,
+  orderId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  const { error } = await supabase.rpc("mark_order_paid_secure", {
+    p_pin: pin,
+    p_order_id: orderId,
+  })
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
-import { ArrowLeft, Clock, Lock, RefreshCw, Trash2, X, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, Clock, Lock, RefreshCw, Trash2, X, CheckCircle2, Circle } from "lucide-react"
 import type { TableSummary } from "../lib/supabase"
-import { supabase, verifyKitchenPin, fetchTablesSummary, fetchTableOrders, clearTableOrders } from "../lib/supabase"
+import { supabase, verifyKitchenPin, fetchTablesSummary, fetchTableOrders, clearTableOrders, markOrderPaid } from "../lib/supabase"
 import { checkoutStrings, t } from "../checkout-i18n"
 
 function timeAgo(dateStr: string): string {
@@ -36,6 +36,7 @@ export default function Checkout() {
 
   const [tables, setTables] = useState<TableSummary[]>([])
   const [orders, setOrders] = useState<any[]>([])
+  const [paidOrderIds, setPaidOrderIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [clearing, setClearing] = useState(false)
@@ -81,6 +82,7 @@ export default function Checkout() {
     try {
       const data = await fetchTableOrders(tableNumber)
       setOrders(data)
+      setPaidOrderIds(new Set(data.filter((o: any) => o.paid === true).map((o: any) => o.id)))
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -132,6 +134,7 @@ export default function Checkout() {
     const res = await clearTableOrders(pin, selectedTable)
     setClearing(false)
     if (res.ok) {
+      setPaidOrderIds(new Set())
       setCleared(true)
       setConfirmingClear(false)
       setTimeout(() => {
@@ -142,6 +145,20 @@ export default function Checkout() {
     } else {
       setError(res.error ?? "Failed")
       setConfirmingClear(false)
+    }
+  }
+
+  async function handleMarkPaid(orderId: string) {
+    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
+    const res = await markOrderPaid(pin, orderId)
+    if (res.ok) {
+      setPaidOrderIds((prev) => {
+        const next = new Set(prev)
+        next.add(orderId)
+        return next
+      })
+    } else {
+      setError(res.error ?? "Failed to mark paid")
     }
   }
 
@@ -263,8 +280,12 @@ export default function Checkout() {
                     <div
                       key={o.id}
                       className={
-                        "rounded-2xl border border-border bg-surface/60 p-5 " +
-                        (recent ? "border-gold/40 bg-gold/5" : "")
+                        "rounded-2xl border p-5 " +
+                        (paidOrderIds.has(o.id)
+                          ? "border-emerald-500/40 bg-emerald-500/5"
+                          : recent
+                            ? "border-gold/40 bg-gold/5"
+                            : "border-border bg-surface/60")
                       }
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -277,8 +298,21 @@ export default function Checkout() {
                             </span>
                           )}
                         </div>
-                        <span className="text-lg font-extrabold text-foreground">{o.total}</span>
-                      </div>
+                  <span className="text-lg font-extrabold text-foreground">{o.total}</span>
+                  {!paidOrderIds.has(o.id) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkPaid(o.id)}
+                      className="rounded-full border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs font-bold text-gold transition-colors active:bg-gold/20"
+                    >
+                      {t("markPaid", lang)}
+                    </button>
+                  ) : (
+                    <span className="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-300">
+                      {t("paid", lang)}
+                    </span>
+                  )}
+                </div>
 
                       {o.customer_name && (
                         <p className="mt-2 text-sm text-muted">
