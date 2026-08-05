@@ -10,6 +10,6 @@ begin
   if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
-  update public.orders set paid = true where id = p_order_id;
+  update public.orders set paid = true where id = p_order_id::uuid;
 end;
 $$;

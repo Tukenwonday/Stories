@@ -40,8 +40,6 @@ export default function Checkout() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [clearing, setClearing] = useState(false)
-  const [confirmingClear, setConfirmingClear] = useState(false)
-  const [cleared, setCleared] = useState(false)
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -135,16 +133,12 @@ export default function Checkout() {
     setClearing(false)
     if (res.ok) {
       setPaidOrderIds(new Set())
-      setCleared(true)
-      setConfirmingClear(false)
       setTimeout(() => {
-        setCleared(false)
         setView("dashboard")
         setSelectedTable(null)
       }, 800)
     } else {
       setError(res.error ?? "Failed")
-      setConfirmingClear(false)
     }
   }
 
@@ -202,7 +196,6 @@ export default function Checkout() {
   }
 
   if (view === "detail" && selectedTable) {
-    const tableTotal = orders.reduce((sum, o) => sum + Number(o.total), 0)
     return (
       <div dir={dir} className="min-h-screen bg-bg font-sans text-foreground">
         <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
@@ -262,17 +255,6 @@ export default function Checkout() {
             </div>
           ) : (
             <>
-              <div className="mb-4 flex items-center justify-between rounded-2xl border border-border bg-surface/60 px-5 py-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted">{t("orders", lang)}</p>
-                  <p className="text-2xl font-extrabold text-foreground">{orders.length}</p>
-                </div>
-                <div className="text-end">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted">{t("total", lang)}</p>
-                  <p className="text-2xl font-extrabold text-gold">{tableTotal}</p>
-                </div>
-              </div>
-
               <div className="flex flex-col gap-3">
                 {orders.map((o) => {
                   const recent = isRecent(o.created_at)
@@ -298,21 +280,21 @@ export default function Checkout() {
                             </span>
                           )}
                         </div>
-                  <span className="text-lg font-extrabold text-foreground">{o.total}</span>
-                  {!paidOrderIds.has(o.id) ? (
-                    <button
-                      type="button"
-                      onClick={() => handleMarkPaid(o.id)}
-                      className="rounded-full border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs font-bold text-gold transition-colors active:bg-gold/20"
-                    >
-                      {t("markPaid", lang)}
-                    </button>
-                  ) : (
-                    <span className="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-300">
-                      {t("paid", lang)}
-                    </span>
-                  )}
-                </div>
+                        <span className="text-lg font-extrabold text-foreground">{o.total}</span>
+                        {!paidOrderIds.has(o.id) ? (
+                          <button
+                            type="button"
+                            onClick={() => handleMarkPaid(o.id)}
+                            className="rounded-full border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs font-bold text-gold transition-colors active:bg-gold/20"
+                          >
+                            {t("markPaid", lang)}
+                          </button>
+                        ) : (
+                          <span className="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-300">
+                            {t("paid", lang)}
+                          </span>
+                        )}
+                      </div>
 
                       {o.customer_name && (
                         <p className="mt-2 text-sm text-muted">
@@ -355,39 +337,16 @@ export default function Checkout() {
 
         {orders.length > 0 && (
           <div className="fixed inset-x-0 bottom-0 z-30 px-4 pb-safe">
-            <div className="mx-auto max-w-3xl">
-              {confirmingClear ? (
-                <div className="flex items-center justify-between gap-3 rounded-2xl border-2 border-red-500/40 bg-red-500/10 px-5 py-4">
-                  <p className="text-sm font-semibold text-red-300">{t("clearTableConfirm", lang)}</p>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingClear(false)}
-                      className="rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-muted transition-colors active:bg-surface-2"
-                    >
-                      {t("cancel", lang)}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleClear}
-                      disabled={clearing}
-                      className="flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-sm font-bold text-white transition-colors active:bg-red-600 disabled:opacity-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {clearing ? t("clearing", lang) : t("confirmClear", lang)}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmingClear(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-red-500 py-4 text-sm font-bold text-white shadow-lg shadow-black/40 transition-transform active:scale-[0.99]"
-                >
-                  <Trash2 className="h-5 w-5" />
-                  {t("clearTable", lang)}
-                </button>
-              )}
+            <div className="mx-auto flex max-w-3xl justify-center">
+              <button
+                type="button"
+                onClick={handleClear}
+                disabled={clearing}
+                className="flex w-fit items-center justify-center gap-2 rounded-full bg-red-500 px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-black/40 transition-transform active:scale-[0.99] disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {clearing ? t("clearing", lang) : t("clearTable", lang)}
+              </button>
             </div>
           </div>
         )}
@@ -478,15 +437,9 @@ export default function Checkout() {
                     {t("table", lang)}
                   </span>
                   {hasOrders ? (
-                    <>
-                      <span className="mt-2 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-bold text-gold">
-                        {tbl.orderCount} {tbl.orderCount === 1 ? t("order", lang) : t("orders", lang)}
-                      </span>
-                      <span className="text-sm font-extrabold text-foreground">{tbl.total}</span>
-                      {tbl.lastOrderAt && (
-                        <span className="text-[10px] text-muted">{timeAgo(tbl.lastOrderAt)}</span>
-                      )}
-                    </>
+                    tbl.lastOrderAt && (
+                      <span className="mt-2 text-[10px] text-muted">{timeAgo(tbl.lastOrderAt)}</span>
+                    )
                   ) : (
                     <span className="mt-2 text-[10px] font-semibold uppercase tracking-widest text-muted">
                       {t("noOrders", lang)}
