@@ -308,3 +308,72 @@ export async function verifyKitchenPin(pin: string): Promise<boolean> {
   }
   return Boolean(data)
 }
+
+export interface TableSummary {
+  tableNumber: string
+  orderCount: number
+  total: number
+  lastOrderAt: string
+}
+
+export async function fetchTablesSummary(): Promise<TableSummary[]> {
+  if (!supabase) return []
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const { data, error } = await supabase
+    .from("orders")
+    .select("table_number, total, created_at")
+    .gte("created_at", oneDayAgo)
+    .order("created_at", { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  const summary = new Map<string, TableSummary>()
+  for (const row of (data ?? []) as { table_number: string; total: number; created_at: string }[]) {
+    const tn = String(row.table_number).padStart(2, "0")
+    const existing = summary.get(tn)
+    if (existing) {
+      existing.orderCount += 1
+      existing.total += Number(row.total)
+    } else {
+      summary.set(tn, {
+        tableNumber: tn,
+        orderCount: 1,
+        total: Number(row.total),
+        lastOrderAt: row.created_at,
+      })
+    }
+  }
+
+  const result: TableSummary[] = []
+  for (let i = 1; i <= 15; i++) {
+    const tn = String(i).padStart(2, "0")
+    const existing = summary.get(tn)
+    result.push(existing ?? { tableNumber: tn, orderCount: 0, total: 0, lastOrderAt: "" })
+  }
+  return result
+}
+
+export async function fetchTableOrders(tableNumber: string): Promise<any[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("table_number", tableNumber)
+    .order("created_at", { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+export async function clearTableOrders(
+  pin: string,
+  tableNumber: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  const { error } = await supabase.rpc("clear_table_orders_secure", {
+    p_pin: pin,
+    p_table_number: tableNumber,
+  })
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
