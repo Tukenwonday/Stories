@@ -75,6 +75,32 @@ body {
   animation: fade-in 0.2s ease-out;
 }
 
+/* Modal popup animations */
+@keyframes modal-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes modal-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-modal {
+  animation: modal-scale 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.animate-backdrop {
+  animation: modal-backdrop 0.2s ease-out;
+}
+
 /* Safe area padding for iOS notch/home indicator */
 .pb-safe {
   padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
