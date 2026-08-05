@@ -60,27 +60,6 @@ export const strings = {
     en: "You can't add this to your order right now.",
     ar: "لا يمكنك إضافته إلى طلبك الآن.",
   },
-  locationChecking: { en: "Checking your location...", ar: "جاري التحقق من موقعك..." },
-  locationRequired: { en: "Location required", ar: "الموقع مطلوب" },
-  locationRequiredHint: {
-    en: "Please allow location access so we can confirm you're at the restaurant.",
-    ar: "يرجى السماح بالوصول إلى موقعك لتأكيد وجودك في المطعم.",
-  },
-  enableLocation: { en: "Enable location", ar: "تفعيل الموقع" },
-  outOfRange: { en: "You're outside the restaurant", ar: "أنت خارج المطعم" },
-  outOfRangeHint: {
-    en: "Orders can only be placed at the restaurant. Please scan the QR code on your table.",
-    ar: "لا يمكن تقديم الطلبات إلا داخل المطعم. يرجى مسح رمز QR الموجود على طاولتك.",
-  },
-  locationUnsupported: { en: "Location isn't available", ar: "الموقع غير متاح" },
-  locationUnsupportedHint: {
-    en: "This device doesn't support location services, so ordering is unavailable.",
-    ar: "هذا الجهاز لا يدعم خدمات الموقع، لذا تقديم الطلبات غير متاح.",
-  },
-  locationCheckFailed: {
-    en: "Location check failed. You must be at the restaurant to place an order.",
-    ar: "فشل التحقق من الموقع. يجب أن تكون داخل المطعم لتقديم طلبك.",
-  },
 } as const
 
 export function t(key: keyof typeof strings, lang: Lang): string {

@@ -4,7 +4,6 @@ import { useLang } from "../lang-context"
 import { strings } from "../i18n"
 import { useCart } from "../store/cart"
 import { buildOrderPayload, submitOrder } from "../lib/supabase"
-import { verifyLocation } from "../lib/geo"
 
 export default function CartSheet({
   tableNumber,
@@ -31,13 +30,6 @@ export default function CartSheet({
     }
     setSubmitting(true)
     setServerError(null)
-
-    const location = await verifyLocation()
-    if (location !== "ok") {
-      setSubmitting(false)
-      setServerError(strings.locationCheckFailed[lang])
-      return
-    }
 
     const payload = buildOrderPayload({ tableNumber, customerName: name, notes, lines, total })
     const res = await submitOrder(payload)
