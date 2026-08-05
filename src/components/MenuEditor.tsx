@@ -1076,14 +1076,42 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
     <main className="mx-auto max-w-5xl px-4 py-6">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl font-bold uppercase tracking-[0.2em] text-gold">{t("menuEditor")}</h2>
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-muted transition-colors active:bg-surface-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("backToOrders")}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAddingCategory(true)}
+            className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-muted transition-colors active:bg-surface-2"
+          >
+            <Plus className="h-4 w-4" />
+            {t("addCategory")}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setCreating({
+                id: "new-" + uid(),
+                category: data.categories[0]?.id ?? "",
+                title: { en: "", ar: "" },
+                description: { en: "", ar: "" },
+                price: 0,
+                modifiers: [],
+                isAvailable: true,
+              })
+            }
+            className="flex items-center gap-1.5 rounded-full border border-gold/40 px-4 py-2 text-sm font-bold text-gold transition-colors active:bg-gold/10"
+          >
+            <Plus className="h-4 w-4" />
+            {t("addItem")}
+          </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-muted transition-colors active:bg-surface-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t("backToOrders")}
+          </button>
+        </div>
       </div>
 
       {catError && (
@@ -1129,34 +1157,8 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
                     {t("confirmDelete")}
                   </button>
                 </div>
-              ) : (
+               ) : (
                 <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAddingCategory(true)}
-                    className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-muted transition-colors active:bg-surface-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {t("addCategory")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCreating({
-                        id: "new-" + uid(),
-                        category: cat.id,
-                        title: { en: "", ar: "" },
-                        description: { en: "", ar: "" },
-                        price: 0,
-                        modifiers: [],
-                        isAvailable: true,
-                      })
-                    }
-                    className="flex items-center gap-1.5 rounded-full border border-gold/40 px-4 py-2 text-sm font-bold text-gold transition-colors active:bg-gold/10"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {t("addItem")}
-                  </button>
                   <button
                     type="button"
                     onClick={() => setConfirmingDeleteCat(cat.id)}
