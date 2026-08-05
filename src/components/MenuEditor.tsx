@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
-import { ArrowLeft, Check, ChevronDown } from "lucide-react"
+import { ArrowLeft, Check, ChevronDown, Plus, X } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
 import { fetchMenu, updateMenuItem } from "../lib/supabase"
-import type { Category, MenuItem, Lang } from "../types"
+import type { Category, Lang, MenuItem, NotServedWindow } from "../types"
 import { getUnavailableReason, type UnavailableReason } from "../lib/availability"
 
 const inputClass =
   "w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-gold"
+
+const chipClass =
+  "flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300"
+
+const smallAddClass =
+  "grid h-8 w-8 place-items-center rounded-full border border-border bg-surface-2 text-muted disabled:opacity-40"
 
 function Field({
   label,
@@ -40,35 +46,12 @@ function reasonLabel(
   return kitchenStrings[fallbackKey][lang]
 }
 
-interface ParsedNotAvailable {
-  from: string | null
-  to: string | null
-  dates: string[]
-  error?: string
-}
-
-function parseNotAvailable(text: string): ParsedNotAvailable {
-  const result: ParsedNotAvailable = { from: null, to: null, dates: [] }
-  const tokens = text
-    .split(/[,;\n]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-
-  for (const token of tokens) {
-    const range = token.match(/^(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})$/)
-    if (range) {
-      result.from = `${range[1].padStart(2, "0")}:${range[2]}`
-      result.to = `${range[3].padStart(2, "0")}:${range[4]}`
-      continue
-    }
-    if (/^\d{4}-\d{2}-\d{2}$/.test(token)) {
-      if (!result.dates.includes(token)) result.dates.push(token)
-      continue
-    }
-    result.error = `"${token}"`
-    return result
-  }
-  return result
+function fmtTime(t: string): string {
+  const [h, m] = t.split(":").map((p) => parseInt(p, 10))
+  if (Number.isNaN(h) || Number.isNaN(m)) return t
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
 }
 
 interface ItemForm {
@@ -78,7 +61,8 @@ interface ItemForm {
   descAr: string
   price: string
   image: string
-  notAvailable: string
+  windows: NotServedWindow[]
+  dates: string[]
   isAvailable: boolean
 }
 
@@ -86,48 +70,65 @@ function ItemRow({ item }: { item: MenuItem }) {
   const { lang } = useLang()
   const t = (k: keyof typeof kitchenStrings) => kitchenStrings[k][lang]
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState<ItemForm>(() => {
-    const windowStr =
-      item.notServedFrom && item.notServedTo
-        ? `${item.notServedFrom.slice(0, 5)}-${item.notServedTo.slice(0, 5)}`
-        : ""
-    const dates = item.unavailableDates ?? []
-    return {
-      titleEn: item.title.en,
-      titleAr: item.title.ar,
-      descEn: item.description.en,
-      descAr: item.description.ar,
-      price: String(item.price),
-      image: item.image ?? "",
-      notAvailable: [windowStr, ...dates].filter(Boolean).join(", "),
-      isAvailable: item.isAvailable !== false,
-    }
-  })
+  const [form, setForm] = useState<ItemForm>(() => ({
+    titleEn: item.title.en,
+    titleAr: item.title.ar,
+    descEn: item.description.en,
+    descAr: item.description.ar,
+    price: String(item.price),
+    image: item.image ?? "",
+    windows: (item.notServedWindows ?? []).map((w) => ({
+      from: w.from.slice(0, 5),
+      to: w.to.slice(0, 5),
+    })),
+    dates: [...(item.unavailableDates ?? [])],
+    isAvailable: item.isAvailable !== false,
+  }))
+  const [pendingFrom, setPendingFrom] = useState("")
+  const [pendingTo, setPendingTo] = useState("")
+  const [newDate, setNewDate] = useState("")
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  const preview = parseNotAvailable(form.notAvailable)
   const reason = getUnavailableReason({
     isAvailable: form.isAvailable,
-    unavailableDates: preview.dates,
-    notServedFrom: preview.from,
-    notServedTo: preview.to,
+    unavailableDates: form.dates,
+    notServedWindows: form.windows,
   })
   const status = reasonLabel(reason, "itemAvailable", lang)
 
   const patch = (p: Partial<ItemForm>) => setForm((f) => ({ ...f, ...p }))
+
+  function addWindow() {
+    if (!pendingFrom || !pendingTo) return
+    patch({ windows: [...form.windows, { from: pendingFrom, to: pendingTo }] })
+    setPendingFrom("")
+    setPendingTo("")
+  }
+
+  function removeWindow(i: number) {
+    setForm((f) => ({ ...f, windows: f.windows.filter((_, idx) => idx !== i) }))
+  }
+
+  function addDate() {
+    if (!newDate) return
+    setForm((f) => ({
+      ...f,
+      dates: f.dates.includes(newDate) ? f.dates : [...f.dates, newDate],
+    }))
+    setNewDate("")
+  }
+
+  function removeDate(d: string) {
+    setForm((f) => ({ ...f, dates: f.dates.filter((x) => x !== d) }))
+  }
 
   async function handleSave() {
     setSaveError(null)
     const price = Number(form.price)
     if (Number.isNaN(price) || price < 0) {
       setSaveError(t("invalidPrice"))
-      return
-    }
-    const parsed = parseNotAvailable(form.notAvailable)
-    if (parsed.error) {
-      setSaveError(t("invalidNotAvailable") + parsed.error)
       return
     }
     setSaving(true)
@@ -138,9 +139,8 @@ function ItemRow({ item }: { item: MenuItem }) {
       description_ar: form.descAr,
       price,
       image: form.image.trim() || null,
-      not_served_from: parsed.from,
-      not_served_to: parsed.to,
-      unavailable_dates: parsed.dates,
+      not_served_windows: form.windows,
+      unavailable_dates: form.dates,
       is_available: form.isAvailable,
     })
     setSaving(false)
@@ -169,17 +169,13 @@ function ItemRow({ item }: { item: MenuItem }) {
           </p>
           <div className="mt-0.5 flex items-center gap-2">
             <span
-              className={
-                "text-[11px] font-bold " + (reason ? "text-red-400" : "text-gold")
-              }
+              className={"text-[11px] font-bold " + (reason ? "text-red-400" : "text-gold")}
             >
               {status}
             </span>
             <span className="text-[11px] text-muted">{form.price}</span>
             {item.modifiers && item.modifiers.length > 0 && (
-              <span className="text-[11px] text-muted">
-                · {item.modifiers.length} mod
-              </span>
+              <span className="text-[11px] text-muted">· {item.modifiers.length} mod</span>
             )}
           </div>
         </div>
@@ -261,16 +257,86 @@ function ItemRow({ item }: { item: MenuItem }) {
               className={inputClass}
             />
           </Field>
-          <Field label={t("notAvailableLabel")} full>
-            <input
-              value={form.notAvailable}
-              onChange={(e) => patch({ notAvailable: e.target.value })}
-              placeholder={t("notAvailablePlaceholder")}
-              className={inputClass}
-            />
-            <span className="mt-1 block text-[11px] leading-relaxed text-muted">
+
+          <Field label={t("timeWindowsLabel")} full>
+            <div className="flex flex-wrap items-center gap-2">
+              {form.windows.map((w, i) => (
+                <span key={i} className={chipClass}>
+                  {fmtTime(w.from)} – {fmtTime(w.to)}
+                  <button type="button" onClick={() => removeWindow(i)} aria-label="Remove">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <div className="flex items-end gap-2">
+                <label className="flex flex-col">
+                  <span className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                    {t("fromLabel")}
+                  </span>
+                  <input
+                    type="time"
+                    value={pendingFrom}
+                    onChange={(e) => setPendingFrom(e.target.value)}
+                    className={inputClass + " w-32"}
+                  />
+                </label>
+                <label className="flex flex-col">
+                  <span className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                    {t("toLabel")}
+                  </span>
+                  <input
+                    type="time"
+                    value={pendingTo}
+                    onChange={(e) => setPendingTo(e.target.value)}
+                    className={inputClass + " w-32"}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={addWindow}
+                  disabled={!pendingFrom || !pendingTo}
+                  className={
+                    "flex h-8 items-center gap-1 rounded-full bg-gold px-3 text-xs font-bold text-bg disabled:opacity-40"
+                  }
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {t("addWindow")}
+                </button>
+              </div>
+            </div>
+            <span className="mt-1.5 block text-[11px] leading-relaxed text-muted">
               {t("notAvailableHint")}
             </span>
+          </Field>
+
+          <Field label={t("unavailableDatesLabel")} full>
+            <div className="flex flex-wrap items-center gap-2">
+              {form.dates.map((d) => (
+                <span key={d} className={chipClass}>
+                  {d}
+                  <button type="button" onClick={() => removeDate(d)} aria-label="Remove">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  className={inputClass + " w-40"}
+                />
+                <button
+                  type="button"
+                  onClick={addDate}
+                  disabled={!newDate}
+                  aria-label={t("addDate")}
+                  className={smallAddClass}
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </Field>
 
           <label className="flex items-center gap-2 text-sm font-semibold text-foreground md:col-span-2">

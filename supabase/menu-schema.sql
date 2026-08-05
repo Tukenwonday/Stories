@@ -23,26 +23,21 @@ create table if not exists public.menu (
   tag_en         text,
   tag_ar         text,
   modifiers      jsonb  not null default '[]'::jsonb,
-  not_served_from time,
-  not_served_to   time,
+  not_served_windows jsonb not null default '[]'::jsonb,
   is_available   boolean not null default true,
   unavailable_dates date[] not null default '{}'::date[],
   created_at     timestamptz not null default now()
 );
 
 -- Availability controls
---   not_served_from / not_served_to use the customer's device local time
---   (format HH:MM:SS). Leave both NULL to make the item always available.
---   When set, the item is NOT served inside that daily window and available
---   outside it. If not_served_to is earlier than not_served_from the window
---   crosses midnight, e.g. from '22:00:00' to '06:00:00' = not served from
---   10 PM to 6 AM.
+--   not_served_windows: array of daily windows the item is NOT served, e.g.
+--     [{"from":"14:00","to":"18:00"},{"from":"22:00","to":"06:00"}]
+--   Times use the customer's device local time. An empty array = always
+--   available. A window where "to" is earlier than "from" crosses midnight.
 --   is_available: manual on/off switch (e.g. out of stock / taken off menu).
 --   unavailable_dates: specific dates (YYYY-MM-DD) the item is not served.
-comment on column public.menu.not_served_from is
-  'Start of the daily NOT-served window (HH:MM:SS, local time). NULL = always available.';
-comment on column public.menu.not_served_to is
-  'End of the daily NOT-served window (HH:MM:SS, local time). If before not_served_from, the window crosses midnight.';
+comment on column public.menu.not_served_windows is
+  'Daily NOT-served windows as JSON array of {from,to} times (local time). Empty = always available.';
 comment on column public.menu.is_available is
   'Manual availability switch; false hides the item from ordering.';
 comment on column public.menu.unavailable_dates is
@@ -68,11 +63,21 @@ create policy "anon can update menu" on public.menu
   for update to anon using (true) with check (true);
 
 -- ---------------------------------------------------------------------------
--- Upgrade a menu table created with the older "available_from/available_to"
--- columns: adds the new columns. If you had set available windows on any
--- item, re-enter them as NOT-served windows (the meaning is inverted).
+-- Upgrade a menu table created with the older not_served_from/not_served_to
+-- columns: moves any existing window into not_served_windows, then drops the
+-- old columns. Safe to re-run.
 -- ---------------------------------------------------------------------------
-alter table public.menu add column if not exists not_served_from time;
-alter table public.menu add column if not exists not_served_to time;
+alter table public.menu add column if not exists not_served_windows jsonb not null default '[]'::jsonb;
+
+update public.menu
+  set not_served_windows = jsonb_build_array(
+        jsonb_build_object('from', not_served_from, 'to', not_served_to)
+      )
+  where not_served_from is not null
+    and not_served_to is not null
+    and not_served_windows = '[]'::jsonb;
+
+alter table public.menu drop column if exists not_served_from;
+alter table public.menu drop column if exists not_served_to;
 alter table public.menu add column if not exists is_available boolean not null default true;
 alter table public.menu add column if not exists unavailable_dates date[] not null default '{}'::date[];

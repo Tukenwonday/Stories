@@ -20,6 +20,12 @@ export interface ModifierGroup {
   options: ModifierOption[]
 }
 
+/** One daily window (local time, "HH:MM") during which an item is NOT served. */
+export interface NotServedWindow {
+  from: string
+  to: string
+}
+
 export interface MenuItem {
   id: string
   category: string
@@ -29,10 +35,8 @@ export interface MenuItem {
   image?: string
   tag?: Localized
   modifiers?: ModifierGroup[]
-  /** Local-time window start the item is NOT served (HH:MM:SS). Both set = restricted. */
-  notServedFrom?: string
-  /** Local-time window end the item is NOT served (HH:MM:SS). */
-  notServedTo?: string
+  /** Daily windows the item is NOT served (local time "HH:MM"). Empty = always available. */
+  notServedWindows?: NotServedWindow[]
   /** Manual availability switch (false = off menu / out of stock). */
   isAvailable?: boolean
   /** Dates (YYYY-MM-DD) the item is not served on. */

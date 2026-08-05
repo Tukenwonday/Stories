@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
-import type { CartLine, Category, MenuItem, ModifierGroup } from "../types"
+import type { CartLine, Category, MenuItem, ModifierGroup, NotServedWindow } from "../types"
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -33,8 +33,7 @@ interface MenuRow {
   tag_en: string | null
   tag_ar: string | null
   modifiers: ModifierGroup[]
-  not_served_from: string | null
-  not_served_to: string | null
+  not_served_windows: NotServedWindow[] | null
   is_available: boolean
   unavailable_dates: string[] | null
 }
@@ -64,7 +63,7 @@ export async function fetchMenu(): Promise<MenuData> {
     supabase
       .from("menu")
       .select(
-        "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_from,not_served_to,is_available,unavailable_dates",
+        "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates",
       ),
   ])
 
@@ -85,8 +84,10 @@ export async function fetchMenu(): Promise<MenuData> {
     image: r.image ?? undefined,
     tag: r.tag_en ? { en: r.tag_en, ar: r.tag_ar ?? "" } : undefined,
     modifiers: r.modifiers,
-    notServedFrom: r.not_served_from ?? undefined,
-    notServedTo: r.not_served_to ?? undefined,
+    notServedWindows: (r.not_served_windows ?? []).map((w) => ({
+      from: w.from.slice(0, 5),
+      to: w.to.slice(0, 5),
+    })),
     isAvailable: r.is_available,
     unavailableDates: r.unavailable_dates ?? [],
   }))
@@ -104,8 +105,7 @@ export interface MenuUpdate {
   tag_en?: string | null
   tag_ar?: string | null
   modifiers?: ModifierGroup[]
-  not_served_from?: string | null
-  not_served_to?: string | null
+  not_served_windows?: NotServedWindow[]
   unavailable_dates?: string[]
   is_available?: boolean
 }

@@ -1,10 +1,11 @@
+import type { NotServedWindow } from "../types"
+
 export type UnavailableReason = "stock" | "date" | "time"
 
 export interface AvailabilitySource {
   isAvailable?: boolean
   unavailableDates?: string[]
-  notServedFrom?: string | null
-  notServedTo?: string | null
+  notServedWindows?: NotServedWindow[]
 }
 
 export function getUnavailableReason(
@@ -13,7 +14,7 @@ export function getUnavailableReason(
 ): UnavailableReason | null {
   if (item.isAvailable === false) return "stock"
   if (item.unavailableDates?.includes(toDateKey(now))) return "date"
-  if (isWithinNotServedWindow(item, now)) return "time"
+  if ((item.notServedWindows ?? []).some((w) => isInWindow(w, now))) return "time"
   return null
 }
 
@@ -21,19 +22,10 @@ export function isItemAvailable(item: AvailabilitySource, now = new Date()): boo
   return getUnavailableReason(item, now) === null
 }
 
-function isWithinNotServedWindow(
-  item: { notServedFrom?: string | null; notServedTo?: string | null },
-  now = new Date(),
-): boolean {
-  const from = item.notServedFrom
-  const to = item.notServedTo
-  if (!from && !to) return false
-  if (!from || !to) return false
-
-  const fromMin = toMinutes(from)
-  const toMin = toMinutes(to)
+function isInWindow(w: NotServedWindow, now: Date): boolean {
+  const fromMin = toMinutes(w.from)
+  const toMin = toMinutes(w.to)
   if (fromMin == null || toMin == null) return false
-
   const nowMin = now.getHours() * 60 + now.getMinutes()
   if (fromMin <= toMin) {
     return nowMin >= fromMin && nowMin <= toMin
