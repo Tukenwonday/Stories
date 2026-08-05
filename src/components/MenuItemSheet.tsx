@@ -4,6 +4,8 @@ import type { MenuItem, ModifierGroup, SelectedModifier } from "../types"
 import { useLang } from "../lang-context"
 import { strings } from "../i18n"
 import { useCart } from "../store/cart"
+import { getUnavailableReason } from "../lib/availability"
+import { unavailableLabel } from "./MenuItemCard"
 
 /** Pre-select the first option for required single-choice groups. */
 function initialSelection(item: MenuItem): Record<string, string[]> {
@@ -63,8 +65,12 @@ export default function MenuItemSheet({
 
   const canAdd = groups.every((g) => !g.required || (selection[g.id]?.length ?? 0) > 0)
 
+  const reason = getUnavailableReason(item)
+  const reasonLabel = unavailableLabel(reason, lang)
+  const addDisabled = !canAdd || reason !== null
+
   function handleAdd() {
-    if (!canAdd) return
+    if (addDisabled) return
     addItem(item, selectedModifiers, quantity)
     onClose()
   }
@@ -107,6 +113,13 @@ export default function MenuItemSheet({
           )}
 
           <p className="mt-3 text-sm leading-relaxed text-muted">{item.description[lang]}</p>
+
+          {reasonLabel && (
+            <div className="mt-3 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3">
+              <p className="text-sm font-bold text-gold">{reasonLabel}</p>
+              <p className="mt-0.5 text-xs text-muted">{strings.notServedHint[lang]}</p>
+            </div>
+          )}
 
           {groups.length > 0 && (
             <div className="mt-5 flex flex-col gap-4 border-t border-border pt-4">
@@ -177,10 +190,12 @@ export default function MenuItemSheet({
           <button
             type="button"
             onClick={handleAdd}
-            disabled={!canAdd}
+            disabled={addDisabled}
             className="flex flex-1 items-center justify-center gap-2 rounded-full bg-gold px-5 py-3.5 text-sm font-bold text-bg transition-transform active:scale-[0.98] disabled:opacity-40"
           >
-            {strings.addToOrder[lang]} · {unitPrice * quantity} {strings.currency[lang]}
+            {reasonLabel
+              ? reasonLabel
+              : `${strings.addToOrder[lang]} · ${unitPrice * quantity} ${strings.currency[lang]}`}
           </button>
         </div>
       </div>

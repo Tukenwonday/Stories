@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
-import { Clock, Lock, RefreshCw } from "lucide-react"
+import { Clock, Lock, RefreshCw, SlidersHorizontal } from "lucide-react"
 import type { Lang } from "../types"
 import { LangContext } from "../lang-context"
 import { supabase } from "../lib/supabase"
 import { kitchenStrings } from "../kitchen-i18n"
+import MenuEditor from "./MenuEditor"
 
 /** Change this PIN before going live. */
 const KITCHEN_PIN = "2026"
@@ -37,6 +38,7 @@ export default function Kitchen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
+  const [view, setView] = useState<"orders" | "admin">("orders")
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -166,16 +168,32 @@ export default function Kitchen() {
         <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
           <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
             <div className="flex items-center gap-3">
-              <img
-                src="/images/logo.png"
-                alt="Stories"
-                className="h-9 w-9 rounded-full border border-gold/40 object-cover"
-              />
-              <div>
-                <h1 className="text-sm font-bold uppercase tracking-[0.2em] text-gold">
-                  {t("title")}
-                </h1>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted">{t("subtitle")}</p>
+              <button
+                type="button"
+                onClick={() => setView((v) => (v === "admin" ? "orders" : "admin"))}
+                className={
+                  "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-colors " +
+                  (view === "admin"
+                    ? "border-gold bg-gold text-bg"
+                    : "border-gold/40 text-gold active:bg-gold/10")
+                }
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t("admin")}</span>
+              </button>
+
+              <div className="flex items-center gap-3">
+                <img
+                  src="/images/logo.png"
+                  alt="Stories"
+                  className="h-9 w-9 rounded-full border border-gold/40 object-cover"
+                />
+                <div>
+                  <h1 className="text-sm font-bold uppercase tracking-[0.2em] text-gold">
+                    {t("title")}
+                  </h1>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted">{t("subtitle")}</p>
+                </div>
               </div>
             </div>
 
@@ -213,8 +231,11 @@ export default function Kitchen() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-5xl px-4 py-6">
-          {loading && orders.length === 0 ? (
+        {view === "admin" ? (
+          <MenuEditor onBack={() => setView("orders")} />
+        ) : (
+          <main className="mx-auto max-w-5xl px-4 py-6">
+            {loading && orders.length === 0 ? (
             <p className="py-20 text-center text-sm text-muted">
               <Clock className="mx-auto mb-3 h-6 w-6 animate-pulse text-gold" />
               {t("loading")}
@@ -296,7 +317,8 @@ export default function Kitchen() {
               })}
             </ol>
           )}
-        </main>
+          </main>
+        )}
       </div>
     </LangContext.Provider>
   )

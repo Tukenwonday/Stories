@@ -3,6 +3,7 @@ import { Search, X } from "lucide-react"
 import type { Category, Lang, MenuItem } from "./types"
 import { LangContext } from "./lang-context"
 import { strings } from "./i18n"
+import { fetchMenu } from "./lib/supabase"
 import Header from "./components/Header"
 import CategoryNav from "./components/CategoryNav"
 import MenuItemCard from "./components/MenuItemCard"
@@ -48,14 +49,8 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    fetch("/menu.json")
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Failed to load menu data")
-        }
-        return res.json()
-      })
-      .then((data: { categories: Category[]; menu: MenuItem[] }) => {
+    fetchMenu()
+      .then((data) => {
         setCategories(data.categories)
         setMenu(data.menu)
         if (data.categories.length > 0) {
@@ -63,9 +58,9 @@ export default function App() {
         }
         setLoading(false)
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         console.error(err)
-        setError(err.message || strings.loadError.ar)
+        setError((err instanceof Error ? err.message : String(err)) || strings.loadError.ar)
         setLoading(false)
       })
   }, [])
@@ -82,9 +77,10 @@ export default function App() {
   const isSearching = trimmedQuery.length > 0
 
   const visibleItems = useMemo(() => {
+    let list: MenuItem[]
     if (isSearching) {
       const q = query.trim()
-      return menu.filter(
+      list = menu.filter(
         (i) =>
           i.title[lang].includes(q) ||
           i.title.en.toLowerCase().includes(trimmedQuery) ||
@@ -93,8 +89,10 @@ export default function App() {
           i.description.en.toLowerCase().includes(trimmedQuery) ||
           i.description.ar.includes(q),
       )
+    } else {
+      list = menu.filter((i) => i.category === activeCat)
     }
-    return menu.filter((i) => i.category === activeCat)
+    return list
   }, [isSearching, trimmedQuery, query, lang, activeCat, menu])
 
   const activeLabel = categories.find((c) => c.id === activeCat)?.label[lang]

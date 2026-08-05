@@ -53,6 +53,13 @@ export const strings = {
   chooseOne: { en: "Choose one", ar: "اختر واحدًا" },
   chooseAny: { en: "Choose any", ar: "اختر ما تريد" },
   nameError: { en: "Please enter your name", ar: "الرجاء إدخال اسمك" },
+  unavailable: { en: "Unavailable", ar: "غير متوفر" },
+  notServedTime: { en: "Not served at this time", ar: "لا يُقدَّم في هذا الوقت" },
+  notServedToday: { en: "Not served today", ar: "لا يُقدَّم اليوم" },
+  notServedHint: {
+    en: "You can't add this to your order right now.",
+    ar: "لا يمكنك إضافته إلى طلبك الآن.",
+  },
 } as const
 
 export function t(key: keyof typeof strings, lang: Lang): string {

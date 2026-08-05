@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
-import type { CartLine } from "../types"
+import type { CartLine, Category, MenuItem, ModifierGroup } from "../types"
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -14,6 +14,114 @@ export const isSupabaseConfigured = Boolean(url && anonKey)
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url, anonKey)
   : null
+
+interface CategoryRow {
+  id: string
+  label_en: string
+  label_ar: string
+}
+
+interface MenuRow {
+  id: string
+  category: string
+  title_en: string
+  title_ar: string
+  description_en: string
+  description_ar: string
+  price: number
+  image: string | null
+  tag_en: string | null
+  tag_ar: string | null
+  modifiers: ModifierGroup[]
+  available_from: string | null
+  available_to: string | null
+  is_available: boolean
+  unavailable_dates: string[] | null
+}
+
+export interface MenuData {
+  categories: Category[]
+  menu: MenuItem[]
+}
+
+/**
+ * Loads the menu. When Supabase is configured it reads the `categories` and
+ * `menu` tables; otherwise it falls back to the bundled public/menu.json so
+ * the app still works without credentials (demo mode).
+ */
+export async function fetchMenu(): Promise<MenuData> {
+  if (!supabase) {
+    const res = await fetch("/menu.json")
+    if (!res.ok) throw new Error("Failed to load menu data")
+    return (await res.json()) as MenuData
+  }
+
+  const [cats, items] = await Promise.all([
+    supabase
+      .from("categories")
+      .select("id,label_en,label_ar")
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("menu")
+      .select(
+        "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,available_from,available_to,is_available,unavailable_dates",
+      ),
+  ])
+
+  if (cats.error) throw new Error(cats.error.message)
+  if (items.error) throw new Error(items.error.message)
+
+  const categories: Category[] = ((cats.data ?? []) as CategoryRow[]).map((r) => ({
+    id: r.id,
+    label: { en: r.label_en, ar: r.label_ar },
+  }))
+
+  const menu: MenuItem[] = ((items.data ?? []) as MenuRow[]).map((r) => ({
+    id: r.id,
+    category: r.category,
+    title: { en: r.title_en, ar: r.title_ar },
+    description: { en: r.description_en, ar: r.description_ar },
+    price: Number(r.price),
+    image: r.image ?? undefined,
+    tag: r.tag_en ? { en: r.tag_en, ar: r.tag_ar ?? "" } : undefined,
+    modifiers: r.modifiers,
+    availableFrom: r.available_from ?? undefined,
+    availableTo: r.available_to ?? undefined,
+    isAvailable: r.is_available,
+    unavailableDates: r.unavailable_dates ?? [],
+  }))
+
+  return { categories, menu }
+}
+
+export interface MenuUpdate {
+  title_en?: string
+  title_ar?: string
+  description_en?: string
+  description_ar?: string
+  price?: number
+  image?: string | null
+  tag_en?: string | null
+  tag_ar?: string | null
+  modifiers?: ModifierGroup[]
+  available_from?: string | null
+  available_to?: string | null
+  unavailable_dates?: string[]
+  is_available?: boolean
+}
+
+/**
+ * Persists an edited menu row from the kitchen dashboard.
+ */
+export async function updateMenuItem(
+  id: string,
+  updates: MenuUpdate,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  const { error } = await supabase.from("menu").update(updates).eq("id", id)
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
 
 export interface OrderPayload {
   table_number: string

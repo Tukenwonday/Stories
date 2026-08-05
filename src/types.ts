@@ -29,6 +29,14 @@ export interface MenuItem {
   image?: string
   tag?: Localized
   modifiers?: ModifierGroup[]
+  /** Local-time availability window start (HH:MM:SS). Both set = restricted window. */
+  availableFrom?: string
+  /** Local-time availability window end (HH:MM:SS). */
+  availableTo?: string
+  /** Manual availability switch (false = off menu / out of stock). */
+  isAvailable?: boolean
+  /** Dates (YYYY-MM-DD) the item is not served on. */
+  unavailableDates?: string[]
 }
 
 export interface Category {
