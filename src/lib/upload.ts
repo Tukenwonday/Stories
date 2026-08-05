@@ -3,8 +3,6 @@ import { supabase } from "./supabase"
 
 const BUCKET = "menu-images"
 
-export const isImageUploadConfigured = Boolean(supabase)
-
 export interface UploadResult {
   ok: boolean
   url?: string
