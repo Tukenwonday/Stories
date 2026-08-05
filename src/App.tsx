@@ -3,7 +3,7 @@ import { Search, X } from "lucide-react"
 import type { Category, Lang, MenuItem } from "./types"
 import { LangContext } from "./lang-context"
 import { strings } from "./i18n"
-import { fetchMenu, MENU_IMAGE_BASE } from "./lib/supabase"
+import { fetchMenu } from "./lib/supabase"
 import Header from "./components/Header"
 import CategoryNav from "./components/CategoryNav"
 import MenuItemCard from "./components/MenuItemCard"
@@ -102,7 +102,7 @@ export default function App() {
       <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
         <div dir={dir} className="flex min-h-screen flex-col items-center justify-center bg-bg px-6 text-center font-sans text-foreground">
           <img
-            src={`${MENU_IMAGE_BASE}/logo.png`}
+            src="/images/logo.png"
             alt="Stories"
             className="h-20 w-20 rounded-full border border-gold/40 object-cover"
           />
