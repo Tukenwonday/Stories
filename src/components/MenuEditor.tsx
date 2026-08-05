@@ -3,7 +3,7 @@ import type { ChangeEvent, ReactNode } from "react"
 import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
-import { deleteMenuItem, fetchMenu, insertMenuItem, updateMenuItem } from "../lib/supabase"
+import { deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem } from "../lib/supabase"
 import { uploadMenuItemImage } from "../lib/upload"
 import type {
   Category,
@@ -19,6 +19,132 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10)
+}
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+/* ── Popup Modal for creating a new category ── */
+function CategoryAddModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void
+  onCreated: () => void
+}) {
+  const { lang } = useLang()
+  const t = (k: keyof typeof kitchenStrings) => kitchenStrings[k][lang]
+
+  const [nameEn, setNameEn] = useState("")
+  const [nameAr, setNameAr] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSave() {
+    setError(null)
+    if (!nameEn.trim() || !nameAr.trim()) {
+      setError(t("categoryNamesRequired"))
+      return
+    }
+    const id = slugify(nameEn) || "cat-" + uid()
+    setSaving(true)
+    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
+    const res = await insertCategory(pin, {
+      id,
+      label_en: nameEn.trim(),
+      label_ar: nameAr.trim(),
+    })
+    setSaving(false)
+    if (res.ok) {
+      setSaved(true)
+      setTimeout(() => {
+        setSaved(false)
+        onCreated()
+        onClose()
+      }, 600)
+    } else {
+      setError(res.error ?? "Failed")
+    }
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose()
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [onClose])
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = ""
+    }
+  }, [])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center animate-backdrop">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative mx-4 w-full max-w-md rounded-3xl border border-border bg-bg p-6 shadow-2xl shadow-black/50 animate-modal">
+        <h2 className="text-lg font-bold text-foreground">{t("addCategory")}</h2>
+
+        <div className="mt-5 flex flex-col gap-4">
+          <Field label={t("categoryNameEn")}>
+            <input
+              value={nameEn}
+              onChange={(e) => setNameEn(e.target.value)}
+              className={inputClass}
+              autoFocus
+            />
+          </Field>
+          <Field label={t("categoryNameAr")}>
+            <input
+              value={nameAr}
+              onChange={(e) => setNameAr(e.target.value)}
+              dir="rtl"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+
+        {error && (
+          <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-6 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-border bg-surface px-6 py-3.5 text-sm font-bold text-muted transition-colors active:bg-surface-2"
+          >
+            {t("cancel")}
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className={
+              "flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-bold transition-all " +
+              (saved
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                : "bg-gold text-bg active:bg-gold/90 disabled:opacity-50")
+            }
+          >
+            {saved ? <Check className="h-4 w-4" /> : null}
+            {saving ? t("saving") : saved ? t("saved") : t("addCategory")}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /* ── Larger input class for elderly-friendly UI ── */
@@ -112,6 +238,7 @@ function windowsToHours(windows: NotServedWindow[]): number[] {
 }
 
 interface ItemForm {
+  category: string
   titleEn: string
   titleAr: string
   descEn: string
@@ -326,17 +453,20 @@ function ItemEditModal({
   onDeleted,
   mode = "edit",
   onCreated,
+  categories,
 }: {
   item: MenuItem
   onClose: () => void
   onDeleted: () => void
   mode?: "edit" | "create"
   onCreated?: () => void
+  categories: Category[]
 }) {
   const { lang } = useLang()
   const t = (k: keyof typeof kitchenStrings) => kitchenStrings[k][lang]
 
   const [form, setForm] = useState<ItemForm>(() => ({
+    category: item.category,
     titleEn: item.title.en,
     titleAr: item.title.ar,
     descEn: item.description.en,
@@ -392,7 +522,7 @@ function ItemEditModal({
     }
     const res =
       mode === "create"
-        ? await insertMenuItem(pin, { id: item.id, category: item.category, ...fields })
+        ? await insertMenuItem(pin, { id: item.id, category: form.category, ...fields })
         : await updateMenuItem(pin, item.id, fields)
     setSaving(false)
     if (res.ok) {
@@ -495,6 +625,21 @@ function ItemEditModal({
           <section>
             <SectionHeader title={t("basicInfo")} />
             <div className="grid gap-4 sm:grid-cols-2">
+              {mode === "create" && (
+                <Field label={t("category")} full>
+                  <select
+                    value={form.category}
+                    onChange={(e) => patch({ category: e.target.value })}
+                    className={inputClass}
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label.en} — {c.label.ar}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
               <Field label={`${t("titleLabel")} (EN)`}>
                 <input
                   value={form.titleEn}
@@ -771,7 +916,15 @@ function ItemEditModal({
 }
 
 /* ── Item Card (replaces old ItemRow) ── */
-function ItemCard({ item, onDeleted }: { item: MenuItem; onDeleted: () => void }) {
+function ItemCard({
+  item,
+  onDeleted,
+  categories,
+}: {
+  item: MenuItem
+  onDeleted: () => void
+  categories: Category[]
+}) {
   const { lang } = useLang()
   const t = (k: keyof typeof kitchenStrings) => kitchenStrings[k][lang]
   const [modalOpen, setModalOpen] = useState(false)
@@ -846,6 +999,7 @@ function ItemCard({ item, onDeleted }: { item: MenuItem; onDeleted: () => void }
           item={item}
           onClose={() => setModalOpen(false)}
           onDeleted={onDeleted}
+          categories={categories}
         />
       )}
     </>
@@ -861,6 +1015,7 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState<MenuItem | null>(null)
+  const [addingCategory, setAddingCategory] = useState(false)
 
   const load = useCallback(() => {
     fetchMenu()
@@ -924,28 +1079,38 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
                 <span className="text-gold">{cat.label[lang]}</span>
                 <span className="text-sm font-medium text-muted">({cat.items.length})</span>
               </h3>
-              <button
-                type="button"
-                onClick={() =>
-                  setCreating({
-                    id: "new-" + uid(),
-                    category: cat.id,
-                    title: { en: "", ar: "" },
-                    description: { en: "", ar: "" },
-                    price: 0,
-                    modifiers: [],
-                    isAvailable: true,
-                  })
-                }
-                className="flex shrink-0 items-center gap-1.5 rounded-full border border-gold/40 px-4 py-2 text-sm font-bold text-gold transition-colors active:bg-gold/10"
-              >
-                <Plus className="h-4 w-4" />
-                {t("addItem")}
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddingCategory(true)}
+                  className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-muted transition-colors active:bg-surface-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("addCategory")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCreating({
+                      id: "new-" + uid(),
+                      category: cat.id,
+                      title: { en: "", ar: "" },
+                      description: { en: "", ar: "" },
+                      price: 0,
+                      modifiers: [],
+                      isAvailable: true,
+                    })
+                  }
+                  className="flex items-center gap-1.5 rounded-full border border-gold/40 px-4 py-2 text-sm font-bold text-gold transition-colors active:bg-gold/10"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("addItem")}
+                </button>
+              </div>
             </div>
             <div className="mt-3 divide-y divide-border rounded-3xl border border-border bg-surface/40">
               {cat.items.map((item) => (
-                <ItemCard key={item.id} item={item} onDeleted={load} />
+                <ItemCard key={item.id} item={item} onDeleted={load} categories={data.categories} />
               ))}
             </div>
           </section>
@@ -959,7 +1124,12 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
           onClose={() => setCreating(null)}
           onDeleted={() => setCreating(null)}
           onCreated={load}
+          categories={data.categories}
         />
+      )}
+
+      {addingCategory && (
+        <CategoryAddModal onClose={() => setAddingCategory(false)} onCreated={load} />
       )}
     </main>
   )
