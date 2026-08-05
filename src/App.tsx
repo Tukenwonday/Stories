@@ -202,7 +202,10 @@ export default function App() {
           )}
           <button
             type="button"
-            onClick={() => void checkLocation()}
+            onClick={() => {
+              if (status === "denied") window.location.reload()
+              else void checkLocation()
+            }}
             className="mt-6 rounded-full bg-gold px-6 py-3 text-sm font-bold text-bg transition-colors active:bg-gold/90"
           >
             {status === "outOfRange" ? strings.retry[lang] : strings.enableLocation[lang]}
