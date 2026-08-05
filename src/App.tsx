@@ -3,7 +3,7 @@ import { Search, X } from "lucide-react"
 import type { Category, Lang, MenuItem } from "./types"
 import { LangContext } from "./lang-context"
 import { strings } from "./i18n"
-import { fetchMenu } from "./lib/supabase"
+import { fetchMenu, supabase } from "./lib/supabase"
 import Header from "./components/Header"
 import CategoryNav from "./components/CategoryNav"
 import MenuItemCard from "./components/MenuItemCard"
@@ -29,18 +29,30 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
 
-  // Resolve the secret table token from the URL against tables.json.
+  // Resolve the secret table token from the URL against the server.
+  // Tokens live in a Supabase table behind RLS; the RPC only resolves a token
+  // you already have, so the full list is never exposed.
   useEffect(() => {
     const token = getTableToken()
-    fetch("/tables.json")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load table data")
-        return res.json()
-      })
-      .then((data: { tables: { table: number; token: string }[] }) => {
-        const found = data.tables.find((t) => t.token === token)
-        if (found) {
-          setTableNumber(String(found.table).padStart(2, "0"))
+
+    const resolve = async (): Promise<string | null> => {
+      if (supabase) {
+        const { data, error } = await supabase.rpc("resolve_table_token", { p_token: token })
+        if (error) throw error
+        return data as string | null
+      }
+      // Demo fallback (Supabase not configured): bundled public/tables.json
+      const res = await fetch("/tables.json")
+      if (!res.ok) throw new Error("Failed to load table data")
+      const data: { tables: { table: number; token: string }[] } = await res.json()
+      const found = data.tables.find((t) => t.token === token)
+      return found ? String(found.table).padStart(2, "0") : null
+    }
+
+    resolve()
+      .then((tableNumber) => {
+        if (tableNumber) {
+          setTableNumber(tableNumber)
         } else {
           setTableInvalid(true)
         }
