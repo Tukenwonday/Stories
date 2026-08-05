@@ -1,0 +1,6 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "menu-image-store",
+  "main": "menu-image-store.js",
+  "compatibility_date": "2026-08-05"
+}
