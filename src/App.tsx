@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Search, X } from "lucide-react"
 import type { Category, Lang, MenuItem } from "./types"
 import { LangContext } from "./lang-context"
 import { strings } from "./i18n"
 import { fetchMenu } from "./lib/supabase"
+import { verifyLocation, type LocationStatus } from "./lib/geo"
 import Header from "./components/Header"
 import CategoryNav from "./components/CategoryNav"
 import MenuItemCard from "./components/MenuItemCard"
@@ -30,6 +31,7 @@ export default function App() {
 
   const [tableNumber, setTableNumber] = useState<string | null>(null)
   const [tableInvalid, setTableInvalid] = useState(false)
+  const [locationStatus, setLocationStatus] = useState<LocationStatus | "checking">("checking")
   const [lang, setLang] = useState<Lang>("ar")
   const dir: "ltr" | "rtl" = lang === "ar" ? "rtl" : "ltr"
   const toggleLang = () => setLang((l) => (l === "ar" ? "en" : "ar"))
@@ -58,6 +60,18 @@ export default function App() {
       })
       .catch(() => setTableInvalid(true))
   }, [])
+
+  // Re-check GPS whenever the table is resolved or the user retries.
+  const checkLocation = useCallback(async () => {
+    setLocationStatus("checking")
+    setLocationStatus(await verifyLocation())
+  }, [])
+
+  useEffect(() => {
+    if (tableNumber !== null) {
+      void checkLocation()
+    }
+  }, [tableNumber, checkLocation])
 
   useEffect(() => {
     fetchMenu()
@@ -141,6 +155,58 @@ export default function App() {
       <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
         <div dir={dir} className="flex min-h-screen flex-col items-center justify-center bg-bg font-sans text-foreground">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-gold border-t-transparent"></div>
+        </div>
+      </LangContext.Provider>
+    )
+  }
+
+  if (locationStatus === "checking") {
+    return (
+      <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
+        <div dir={dir} className="flex min-h-screen flex-col items-center justify-center bg-bg px-6 text-center font-sans text-foreground">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-gold border-t-transparent"></div>
+          <p className="mt-4 text-sm text-muted">{strings.locationChecking[lang]}</p>
+        </div>
+      </LangContext.Provider>
+    )
+  }
+
+  if (locationStatus !== "ok") {
+    const status = locationStatus
+    return (
+      <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
+        <div dir={dir} className="flex min-h-screen flex-col items-center justify-center bg-bg px-6 text-center font-sans text-foreground">
+          <img
+            src="/images/logo.png"
+            alt="Stories"
+            className="h-20 w-20 rounded-full border border-gold/40 object-cover"
+          />
+          <h1 className="mt-4 font-serif text-lg font-bold uppercase tracking-[0.18em] text-gold">
+            Stories
+          </h1>
+          {status === "outOfRange" ? (
+            <>
+              <p className="mt-6 text-sm font-semibold text-foreground">{strings.outOfRange[lang]}</p>
+              <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted">{strings.outOfRangeHint[lang]}</p>
+            </>
+          ) : status === "unsupported" ? (
+            <>
+              <p className="mt-6 text-sm font-semibold text-foreground">{strings.locationUnsupported[lang]}</p>
+              <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted">{strings.locationUnsupportedHint[lang]}</p>
+            </>
+          ) : (
+            <>
+              <p className="mt-6 text-sm font-semibold text-foreground">{strings.locationRequired[lang]}</p>
+              <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted">{strings.locationRequiredHint[lang]}</p>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => void checkLocation()}
+            className="mt-6 rounded-full bg-gold px-6 py-3 text-sm font-bold text-bg transition-colors active:bg-gold/90"
+          >
+            {status === "outOfRange" ? strings.retry[lang] : strings.enableLocation[lang]}
+          </button>
         </div>
       </LangContext.Provider>
     )
