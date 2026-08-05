@@ -2,12 +2,9 @@ import { useCallback, useEffect, useState } from "react"
 import { Clock, Lock, RefreshCw, SlidersHorizontal } from "lucide-react"
 import type { Lang } from "../types"
 import { LangContext } from "../lang-context"
-import { supabase } from "../lib/supabase"
+import { supabase, verifyKitchenPin } from "../lib/supabase"
 import { kitchenStrings } from "../kitchen-i18n"
 import MenuEditor from "./MenuEditor"
-
-/** Change this PIN before going live. */
-const KITCHEN_PIN = "2026"
 
 let audioCtx: AudioContext | null = null
 
@@ -78,6 +75,7 @@ export default function Kitchen() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem("kitchenAuthed") === "1")
   const [pin, setPin] = useState("")
   const [pinError, setPinError] = useState(false)
+  const [unlocking, setUnlocking] = useState(false)
   const [orders, setOrders] = useState<KitchenOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -96,10 +94,14 @@ export default function Kitchen() {
 
   const t = (k: keyof typeof kitchenStrings) => kitchenStrings[k][lang]
 
-  function unlock() {
-    if (pin === KITCHEN_PIN) {
+  async function unlock() {
+    setUnlocking(true)
+    const ok = await verifyKitchenPin(pin)
+    setUnlocking(false)
+    if (ok) {
       ensureAudio()
       sessionStorage.setItem("kitchenAuthed", "1")
+      sessionStorage.setItem("kitchenPin", pin)
       setAuthed(true)
       setPinError(false)
     } else {
@@ -196,11 +198,12 @@ export default function Kitchen() {
               }
             />
             {pinError && <p className="mt-2 text-xs text-red-400">{t("wrongPin")}</p>}
-            <button
+             <button
               type="submit"
-              className="mt-4 w-full rounded-full bg-gold py-3.5 text-sm font-bold text-bg transition-transform active:scale-[0.98]"
+              disabled={unlocking}
+              className="mt-4 w-full rounded-full bg-gold py-3.5 text-sm font-bold text-bg transition-transform active:scale-[0.98] disabled:opacity-50"
             >
-              {t("unlock")}
+              {unlocking ? "..." : t("unlock")}
             </button>
           </form>
         </div>

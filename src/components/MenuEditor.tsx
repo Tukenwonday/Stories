@@ -374,7 +374,8 @@ function ItemEditModal({
       return
     }
     setSaving(true)
-    const res = await updateMenuItem(item.id, {
+    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
+    const res = await updateMenuItem(pin, item.id, {
       title_en: form.titleEn,
       title_ar: form.titleAr,
       description_en: form.descEn,
@@ -417,7 +418,8 @@ function ItemEditModal({
 
   async function handleDelete() {
     setDeleting(true)
-    const res = await deleteMenuItem(item.id)
+    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
+    const res = await deleteMenuItem(pin, item.id)
     setDeleting(false)
     if (res.ok) {
       setSaveError(null)

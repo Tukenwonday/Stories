@@ -114,11 +114,24 @@ export interface MenuUpdate {
  * Persists an edited menu row from the kitchen dashboard.
  */
 export async function updateMenuItem(
+  pin: string,
   id: string,
   updates: MenuUpdate,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) return { ok: false, error: "Supabase not configured" }
-  const { error } = await supabase.from("menu").update(updates).eq("id", id)
+  const { error } = await supabase.rpc("update_menu_item_secure", {
+    p_pin: pin,
+    p_id: id,
+    p_title_en: updates.title_en,
+    p_title_ar: updates.title_ar,
+    p_description_en: updates.description_en,
+    p_description_ar: updates.description_ar,
+    p_price: updates.price,
+    p_image: updates.image,
+    p_not_served_windows: updates.not_served_windows,
+    p_is_available: updates.is_available,
+    p_modifiers: updates.modifiers,
+  })
   if (error) return { ok: false, error: error.message }
   return { ok: true }
 }
@@ -127,10 +140,14 @@ export async function updateMenuItem(
  * Permanently removes a menu item from the database.
  */
 export async function deleteMenuItem(
+  pin: string,
   id: string,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) return { ok: false, error: "Supabase not configured" }
-  const { error } = await supabase.from("menu").delete().eq("id", id)
+  const { error } = await supabase.rpc("delete_menu_item_secure", {
+    p_pin: pin,
+    p_id: id,
+  })
   if (error) return { ok: false, error: error.message }
   return { ok: true }
 }
@@ -194,4 +211,20 @@ export async function submitOrder(payload: OrderPayload): Promise<{ ok: boolean;
     return { ok: false, demo: false, error: error.message }
   }
   return { ok: true, demo: false }
+}
+
+/**
+ * Validates the kitchen PIN securely using the server-side RPC function.
+ * In demo mode, checks against "2026".
+ */
+export async function verifyKitchenPin(pin: string): Promise<boolean> {
+  if (!supabase) {
+    return pin === "2026"
+  }
+  const { data, error } = await supabase.rpc("verify_kitchen_pin", { p_pin: pin })
+  if (error) {
+    console.error("[supabase] PIN verify error:", error.message)
+    return false
+  }
+  return Boolean(data)
 }
