@@ -3,7 +3,7 @@ import type { ChangeEvent, ReactNode } from "react"
 import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
-import { deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem } from "../lib/supabase"
+import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem } from "../lib/supabase"
 import { uploadMenuItemImage } from "../lib/upload"
 import type {
   Category,
@@ -1016,6 +1016,8 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState<MenuItem | null>(null)
   const [addingCategory, setAddingCategory] = useState(false)
+  const [confirmingDeleteCat, setConfirmingDeleteCat] = useState<string | null>(null)
+  const [catError, setCatError] = useState<string | null>(null)
 
   const load = useCallback(() => {
     fetchMenu()
@@ -1034,6 +1036,19 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     load()
   }, [load])
+
+  async function handleDeleteCategory(id: string) {
+    setCatError(null)
+    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
+    const res = await deleteCategory(pin, id)
+    if (res.ok) {
+      setConfirmingDeleteCat(null)
+      load()
+    } else {
+      setCatError(res.error ?? "Failed")
+      setConfirmingDeleteCat(null)
+    }
+  }
 
   const grouped = useMemo(() => {
     if (!data) return []
@@ -1071,6 +1086,20 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
         </button>
       </div>
 
+      {catError && (
+        <div className="mt-5 flex items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <p className="text-sm font-semibold text-red-400">{catError}</p>
+          <button
+            type="button"
+            onClick={() => setCatError(null)}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface text-muted active:bg-surface-2"
+            aria-label={t("close")}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <div className="mt-5 flex flex-col gap-6">
         {grouped.map((cat) => (
           <section key={cat.id}>
@@ -1079,34 +1108,66 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
                 <span className="text-gold">{cat.label[lang]}</span>
                 <span className="text-sm font-medium text-muted">({cat.items.length})</span>
               </h3>
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAddingCategory(true)}
-                  className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-muted transition-colors active:bg-surface-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  {t("addCategory")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCreating({
-                      id: "new-" + uid(),
-                      category: cat.id,
-                      title: { en: "", ar: "" },
-                      description: { en: "", ar: "" },
-                      price: 0,
-                      modifiers: [],
-                      isAvailable: true,
-                    })
-                  }
-                  className="flex items-center gap-1.5 rounded-full border border-gold/40 px-4 py-2 text-sm font-bold text-gold transition-colors active:bg-gold/10"
-                >
-                  <Plus className="h-4 w-4" />
-                  {t("addItem")}
-                </button>
-              </div>
+              {confirmingDeleteCat === cat.id ? (
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="hidden text-xs font-semibold text-red-300 sm:inline">
+                    {t("deleteCategoryConfirm")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDeleteCat(null)}
+                    className="rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-muted transition-colors active:bg-surface-2"
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteCategory(cat.id)}
+                    className="flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-2 text-sm font-bold text-white transition-colors active:bg-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {t("confirmDelete")}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddingCategory(true)}
+                    className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-muted transition-colors active:bg-surface-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {t("addCategory")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCreating({
+                        id: "new-" + uid(),
+                        category: cat.id,
+                        title: { en: "", ar: "" },
+                        description: { en: "", ar: "" },
+                        price: 0,
+                        modifiers: [],
+                        isAvailable: true,
+                      })
+                    }
+                    className="flex items-center gap-1.5 rounded-full border border-gold/40 px-4 py-2 text-sm font-bold text-gold transition-colors active:bg-gold/10"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {t("addItem")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDeleteCat(cat.id)}
+                    aria-label={t("deleteCategory")}
+                    title={t("deleteCategory")}
+                    className="grid h-9 w-9 place-items-center rounded-full border border-red-500/40 bg-red-500/10 text-red-300 transition-colors active:bg-red-500/20"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
             <div className="mt-3 divide-y divide-border rounded-3xl border border-border bg-surface/40">
               {cat.items.map((item) => (

@@ -216,6 +216,22 @@ export async function insertCategory(
   return { ok: true }
 }
 
+/**
+ * Permanently removes a category and all menu items assigned to it.
+ */
+export async function deleteCategory(
+  pin: string,
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  const { error } = await supabase.rpc("delete_category_secure", {
+    p_pin: pin,
+    p_id: id,
+  })
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
 export interface OrderPayload {
   table_number: string
   customer_name: string

@@ -80,6 +80,11 @@ export const kitchenStrings = {
     en: "Enter a category name in both languages",
     ar: "أدخل اسم الفئة باللغتين",
   },
+  deleteCategory: { en: "Delete category", ar: "حذف الفئة" },
+  deleteCategoryConfirm: {
+    en: "Delete category & its items?",
+    ar: "حذف الفئة وعناصرها؟",
+  },
   basicInfo: { en: "Basic Information", ar: "المعلومات الأساسية" },
   availability: { en: "Availability", ar: "التوفر" },
   dangerZone: { en: "Danger Zone", ar: "منطقة الخطر" },
