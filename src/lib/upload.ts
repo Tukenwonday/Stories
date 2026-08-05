@@ -49,12 +49,26 @@ export async function uploadMenuItemImage(
     })
     if (upError) return { ok: false, error: upError.message }
 
+    const stale = new Set<string>()
+
     if (oldImage) {
       const oldPath = extractBucketPath(oldImage, BUCKET)
-      if (oldPath && oldPath !== path) {
-        const { error: rmError } = await supabase.storage.from(BUCKET).remove([oldPath])
-        if (rmError) console.warn("Could not remove old photo:", rmError.message)
+      if (oldPath && oldPath !== path) stale.add(oldPath)
+    }
+
+    try {
+      const { data: existing } = await supabase.storage.from(BUCKET).list(safeItem)
+      for (const f of existing ?? []) {
+        const candidate = `${safeItem}/${f.name}`
+        if (candidate !== path) stale.add(candidate)
       }
+    } catch {
+      // Listing is best-effort; the oldImage removal above still applies.
+    }
+
+    if (stale.size > 0) {
+      const { error: rmError } = await supabase.storage.from(BUCKET).remove([...stale])
+      if (rmError) console.warn("Could not remove old photo:", rmError.message)
     }
 
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
