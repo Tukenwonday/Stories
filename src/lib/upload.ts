@@ -1,8 +1,9 @@
 import { compressImage } from "./images"
+import { supabase } from "./supabase"
 
-const UPLOAD_URL = import.meta.env.VITE_IMAGE_UPLOAD_URL as string | undefined
+const BUCKET = "menu-images"
 
-export const isImageUploadConfigured = Boolean(UPLOAD_URL)
+export const isImageUploadConfigured = Boolean(supabase)
 
 export interface UploadResult {
   ok: boolean
@@ -11,33 +12,53 @@ export interface UploadResult {
 }
 
 /**
- * Compresses a photo in the browser, then uploads it through the Cloudflare
- * Worker (`VITE_IMAGE_UPLOAD_URL`), which commits it to the GitHub repo
- * (`public/photos`) so it is served from this site's own build output. When
- * `oldImage` points at an existing `/photos/...` file, the Worker deletes it in
- * the same commit. Returns the public image URL for the menu row.
+ * Extracts the object path from a Supabase storage URL
+ * ("https://.../storage/v1/object/public/<bucket>/<path>") or a bare path.
+ * Returns null when the URL does not belong to this bucket.
+ */
+function extractBucketPath(value: string, bucket: string): string | null {
+  const marker = `/${bucket}/`
+  const idx = value.indexOf(marker)
+  if (idx === -1) return null
+  const rest = value.slice(idx + marker.length).split("?")[0].split("#")[0]
+  return rest || null
+}
+
+/**
+ * Compresses a photo in the browser and uploads it to the Supabase
+ * `menu-images` bucket. When `oldImage` points at an existing object in that
+ * bucket, the previous photo is removed so each item keeps a single image.
+ * Returns the public storage URL for the menu row.
  */
 export async function uploadMenuItemImage(
   file: File,
   itemId: string,
   oldImage?: string,
 ): Promise<UploadResult> {
-  if (!UPLOAD_URL) {
+  if (!supabase) {
     return { ok: false, error: "Image upload is not configured" }
   }
   try {
     const { blob, ext } = await compressImage(file)
-    const form = new FormData()
-    form.append("file", blob, `menu-${Date.now()}.${ext}`)
-    form.append("itemId", itemId)
-    if (oldImage) form.append("oldImage", oldImage)
+    const safeItem = itemId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "misc"
+    const path = `${safeItem}/${Date.now()}.${ext}`
 
-    const res = await fetch(UPLOAD_URL, { method: "POST", body: form })
-    const data = await res.json().catch(() => null)
-    if (!res.ok || !data?.ok) {
-      return { ok: false, error: data?.error || "Upload failed" }
+    const { error: upError } = await supabase.storage.from(BUCKET).upload(path, blob, {
+      contentType: blob.type,
+      upsert: false,
+    })
+    if (upError) return { ok: false, error: upError.message }
+
+    if (oldImage) {
+      const oldPath = extractBucketPath(oldImage, BUCKET)
+      if (oldPath && oldPath !== path) {
+        const { error: rmError } = await supabase.storage.from(BUCKET).remove([oldPath])
+        if (rmError) console.warn("Could not remove old photo:", rmError.message)
+      }
     }
-    return { ok: true, url: data.url }
+
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
+    return { ok: true, url: data.publicUrl }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
