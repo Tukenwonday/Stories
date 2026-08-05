@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import type { ReactNode } from "react"
-import { ArrowLeft, Check, Edit3, Plus, Power, Trash2, X } from "lucide-react"
+import type { ChangeEvent, ReactNode } from "react"
+import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
 import { deleteMenuItem, fetchMenu, updateMenuItem } from "../lib/supabase"
+import { isImageUploadConfigured, uploadMenuItemImage } from "../lib/upload"
 import type {
   Category,
   Lang,
@@ -349,6 +350,8 @@ function ItemEditModal({
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -392,6 +395,24 @@ function ItemEditModal({
     } else {
       setSaveError(res.error ?? "Failed")
     }
+  }
+
+  async function handleUploadImage(file: File) {
+    setUploadError(null)
+    setUploading(true)
+    const res = await uploadMenuItemImage(file, item.id)
+    setUploading(false)
+    if (res.ok && res.url) {
+      patch({ image: res.url })
+    } else {
+      setUploadError(res.error ?? "Upload failed")
+    }
+  }
+
+  function onFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (f) void handleUploadImage(f)
+    e.target.value = ""
   }
 
   async function handleDelete() {
@@ -503,12 +524,55 @@ function ItemEditModal({
                   className={inputClass}
                 />
               </Field>
-              <Field label={t("imageLabel")}>
+              <Field label={t("imageLabel")} full>
+                <div className="flex flex-wrap items-center gap-3">
+                  {form.image ? (
+                    <img
+                      src={form.image}
+                      alt=""
+                      className="h-20 w-20 shrink-0 rounded-xl border border-gold/25 object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-20 w-20 shrink-0 place-items-center rounded-xl border border-dashed border-border bg-surface-2 text-center text-[10px] text-muted">
+                      {t("noImage")}
+                    </div>
+                  )}
+
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    {isImageUploadConfigured ? (
+                      <label
+                        className={
+                          "inline-flex w-fit cursor-pointer items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition-colors " +
+                          (uploading
+                            ? "bg-gold/30 text-gold"
+                            : "bg-gold text-bg active:bg-gold/90")
+                        }
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploading}
+                          onChange={onFileChange}
+                        />
+                        {uploading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <UploadCloud className="h-4 w-4" />
+                        )}
+                        {uploading ? t("uploading") : t("uploadPhoto")}
+                      </label>
+                    ) : null}
+                    <p className="text-xs leading-relaxed text-muted">{t("uploadHint")}</p>
+                    {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+                  </div>
+                </div>
+
                 <input
                   value={form.image}
                   onChange={(e) => patch({ image: e.target.value })}
-                  placeholder="images/…"
-                  className={inputClass}
+                  placeholder="https://… or images/…"
+                  className={inputClass + " mt-2"}
                 />
               </Field>
             </div>

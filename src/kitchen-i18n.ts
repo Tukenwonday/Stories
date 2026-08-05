@@ -77,4 +77,11 @@ export const kitchenStrings = {
   close: { en: "Close", ar: "إغلاق" },
   toggleAvailability: { en: "Toggle Availability", ar: "تبديل التوفر" },
   questionsAndOptions: { en: "Questions & Options", ar: "الأسئلة والخيارات" },
+  uploadPhoto: { en: "Upload photo", ar: "رفع صورة" },
+  uploading: { en: "Uploading…", ar: "جارٍ الرفع…" },
+  uploadHint: {
+    en: "Photos are compressed automatically (~800px). Or paste a path or URL below.",
+    ar: "يتم ضغط الصور تلقائيًا (~800 بكسل). أو الصق مسارًا أو رابطًا أدناه.",
+  },
+  noImage: { en: "No image", ar: "لا توجد صورة" },
 } as const
