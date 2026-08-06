@@ -53,7 +53,8 @@ export const queryKeys = {
 /**
  * Builds a public image URL for menu-images bucket.
  * If VITE_CDN_URL is set, uses the CDN domain for edge caching.
- * Otherwise falls back to Supabase public storage URL.
+ * Otherwise falls back to the Pages deployment URL (stories-7rn.pages.dev)
+ * which proxies Supabase storage, avoiding raw Supabase domain exposure.
  * Strips query params for clean, cacheable URLs.
  */
 export function buildPublicImageUrl(storagePath: string): string {
@@ -61,7 +62,7 @@ export function buildPublicImageUrl(storagePath: string): string {
   if (cdnUrl) {
     return `${cdnUrl.replace(/\/+$/, "")}/${cleanPath}`
   }
-  return `${url}/storage/v1/object/public/menu-images/${cleanPath}`
+  return `https://stories-7rn.pages.dev/storage/v1/object/public/menu-images/${cleanPath}`
 }
 
 /**
