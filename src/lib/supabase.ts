@@ -3,6 +3,7 @@ import type { CartLine, Category, MenuItem, ModifierGroup, NotServedWindow } fro
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const cdnUrl = import.meta.env.VITE_CDN_URL
 
 /**
  * Supabase is optional until you fill in the .env values.
@@ -50,6 +51,20 @@ export const queryKeys = {
 }
 
 /**
+ * Builds a public image URL for menu-images bucket.
+ * If VITE_CDN_URL is set, uses the CDN domain for edge caching.
+ * Otherwise falls back to Supabase public storage URL.
+ * Strips query params for clean, cacheable URLs.
+ */
+export function buildPublicImageUrl(storagePath: string): string {
+  const cleanPath = storagePath.replace(/^\/+/, "").split("?")[0].split("#")[0]
+  if (cdnUrl) {
+    return `${cdnUrl.replace(/\/+$/, "")}/${cleanPath}`
+  }
+  return `${url}/storage/v1/object/public/menu-images/${cleanPath}`
+}
+
+/**
  * Menu image rows may store a full public URL (legacy) or a bare storage path
  * (new staged uploads, e.g. "dishes/abc.webp"). Normalize bare paths to a full
  * public URL so <img src> works everywhere.
@@ -57,7 +72,7 @@ export const queryKeys = {
 function publicImageUrl(value: string | null | undefined): string | undefined {
   if (!value) return undefined
   if (/^https?:\/\//.test(value)) return value
-  return `${url}/storage/v1/object/public/menu-images/${value.replace(/^\/+/, "")}`
+  return buildPublicImageUrl(value)
 }
 
 /**

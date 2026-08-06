@@ -1,5 +1,5 @@
 import { compressImage } from "./images"
-import { supabase } from "./supabase"
+import { supabase, buildPublicImageUrl } from "./supabase"
 
 const BUCKET = "menu-images"
 
@@ -26,7 +26,7 @@ function extractBucketPath(value: string, bucket: string): string | null {
 /**
  * Compresses a photo in the browser and uploads it to the Supabase
  * `menu-images` bucket under a flat `dishes/` folder.
- * Returns the public storage URL and the old storage path (if any) for deferred deletion.
+ * Returns the public storage URL (via CDN if configured) and the old storage path (if any) for deferred deletion.
  */
 export async function uploadMenuItemImage(
   file: File,
@@ -50,8 +50,9 @@ export async function uploadMenuItemImage(
     })
     if (upError) return { ok: false, error: upError.message }
 
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
-    return { ok: true, url: data.publicUrl, oldPath: oldPath ?? undefined }
+    // Use buildPublicImageUrl for CDN-aware URL (clean, no query params)
+    const publicUrl = buildPublicImageUrl(path)
+    return { ok: true, url: publicUrl, oldPath: oldPath ?? undefined }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
