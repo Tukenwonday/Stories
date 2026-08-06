@@ -210,6 +210,22 @@ as $$
 $$;
 
 -- ---------------------------------------------------------------------------
+-- list_table_numbers() -> text[]
+-- Returns every table number (never the tokens, which stay hidden behind RLS)
+-- so staff dashboards can render a dynamic table grid instead of a hardcoded
+-- count. Adding a table = inserting one token row; no code changes needed.
+-- ---------------------------------------------------------------------------
+create or replace function list_table_numbers()
+returns text[]
+language sql
+security definer
+stable
+as $$
+  select array_agg(table_number order by table_number::int)
+  from public.table_tokens;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- verify_kitchen_pin(text) -> boolean
 -- Compares the submitted PIN against the stored value in app_config.
 -- Used by the kitchen and checkout dashboards to unlock staff screens.

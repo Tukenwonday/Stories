@@ -485,12 +485,27 @@ export async function fetchTablesSummary(): Promise<TableSummary[]> {
     }
   }
 
-  const result: TableSummary[] = []
-  for (let i = 1; i <= 15; i++) {
-    const tn = String(i).padStart(2, "0")
-    const existing = summary.get(tn)
-    result.push(existing ?? { tableNumber: tn, orderCount: 0, total: 0, lastOrderAt: "" })
+  // Fetch the authoritative list of table numbers (server-side RPC) so the
+  // dashboard grid stays in sync as tables are added/removed. Falls back to
+  // tables seen in recent orders if the RPC isn't available yet.
+  let tableNumbers: string[] = []
+  if (supabase) {
+    const { data: nums, error: numsError } = await supabase.rpc("list_table_numbers")
+    if (numsError) {
+      console.error("[supabase] list_table_numbers error:", numsError.message)
+    } else {
+      tableNumbers = (nums ?? []) as string[]
+    }
   }
+  if (tableNumbers.length === 0) {
+    tableNumbers = [...summary.keys()]
+  }
+
+  const result: TableSummary[] = tableNumbers.map((tn) => {
+    const padded = tn.padStart(2, "0")
+    return summary.get(padded) ?? { tableNumber: padded, orderCount: 0, total: 0, lastOrderAt: "" }
+  })
+  result.sort((a, b) => Number(a.tableNumber) - Number(b.tableNumber))
   return result
 }
 
