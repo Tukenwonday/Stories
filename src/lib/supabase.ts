@@ -100,6 +100,26 @@ function publicImageUrl(value: string | null | undefined): string | undefined {
 }
 
 /**
+ * Resolves a secret table token (from a QR code or NFC tag) to its table
+ * number. Validated server-side via the resolve_table_token RPC so the full
+ * token list is never exposed; unknown tokens return null. In demo mode (no
+ * Supabase) it checks the bundled public/tables.json.
+ */
+export async function resolveTableToken(token: string): Promise<string | null> {
+  if (!token) return null
+  if (supabase) {
+    const { data, error } = await supabase.rpc("resolve_table_token", { p_token: token })
+    if (error) throw error
+    return (data as string | null) ?? null
+  }
+  const res = await fetch("/tables.json")
+  if (!res.ok) throw new Error("Failed to load table data")
+  const data: { tables: { table: number; token: string }[] } = await res.json()
+  const found = data.tables.find((t) => t.token === token)
+  return found ? String(found.table).padStart(2, "0") : null
+}
+
+/**
  * Loads the menu. When Supabase is configured it reads the `categories` and
  * `menu` tables; otherwise it falls back to the bundled public/menu.json so
  * the app still works without credentials (demo mode).

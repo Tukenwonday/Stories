@@ -20,9 +20,11 @@ function initialSelection(item: MenuItem): Record<string, string[]> {
 export default function MenuItemSheet({
   item,
   onClose,
+  canOrder,
 }: {
   item: MenuItem
   onClose: () => void
+  canOrder: boolean
 }) {
   const { lang, dir } = useLang()
   const addItem = useCart((s) => s.addItem)
@@ -191,12 +193,14 @@ export default function MenuItemSheet({
           <button
             type="button"
             onClick={handleAdd}
-            disabled={addDisabled}
+            disabled={addDisabled || !canOrder}
             className="flex flex-1 items-center justify-center gap-2 rounded-full bg-gold px-5 py-3.5 text-sm font-bold text-bg transition-transform active:scale-[0.98] disabled:opacity-40"
           >
-            {reasonLabel
-              ? reasonLabel
-              : `${strings.addToOrder[lang]} · ${unitPrice * quantity} ${strings.currency[lang]}`}
+            {!canOrder
+              ? strings.tapToOrder[lang]
+              : reasonLabel
+                ? reasonLabel
+                : `${strings.addToOrder[lang]} · ${unitPrice * quantity} ${strings.currency[lang]}`}
           </button>
         </div>
       </div>

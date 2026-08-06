@@ -3,8 +3,9 @@ import { Search, X } from "lucide-react"
 import type { Category, Lang, MenuItem } from "./types"
 import { LangContext } from "./lang-context"
 import { strings } from "./i18n"
-import { fetchMenu, supabase, queryKeys } from "./lib/supabase"
+import { fetchMenu, queryKeys } from "./lib/supabase"
 import { useQuery } from "@tanstack/react-query"
+import { useTableSession } from "./hooks/useTableSession"
 import Header from "./components/Header"
 import CategoryNav from "./components/CategoryNav"
 import MenuItemCard from "./components/MenuItemCard"
@@ -12,14 +13,7 @@ import MenuItemSheet from "./components/MenuItemSheet"
 import CartButton from "./components/CartButton"
 import CartSheet from "./components/CartSheet"
 
-function getTableToken(): string {
-  return new URLSearchParams(window.location.search).get("table") ?? ""
-}
-
 export default function App() {
-
-  const [tableNumber, setTableNumber] = useState<string | null>(null)
-  const [tableInvalid, setTableInvalid] = useState(false)
   const [lang, setLang] = useState<Lang>("ar")
   const dir: "ltr" | "rtl" = lang === "ar" ? "rtl" : "ltr"
   const toggleLang = () => setLang((l) => (l === "ar" ? "en" : "ar"))
@@ -29,41 +23,16 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
-  const tableToken = useMemo(() => getTableToken(), [])
+  const [cartOpen, setCartOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
 
-  // Resolve the secret table token from the URL against the server.
-  // Tokens live in a Supabase table behind RLS; the RPC only resolves a token
-  // you already have, so the full list is never exposed.
-  useEffect(() => {
-    const token = getTableToken()
-
-    const resolve = async (): Promise<string | null> => {
-      if (supabase) {
-        const { data, error } = await supabase.rpc("resolve_table_token", { p_token: token })
-        if (error) throw error
-        return data as string | null
-      }
-      // Demo fallback (Supabase not configured): bundled public/tables.json
-      const res = await fetch("/tables.json")
-      if (!res.ok) throw new Error("Failed to load table data")
-      const data: { tables: { table: number; token: string }[] } = await res.json()
-      const found = data.tables.find((t) => t.token === token)
-      return found ? String(found.table).padStart(2, "0") : null
-    }
-
-    resolve()
-      .then((tableNumber) => {
-        if (tableNumber) {
-          setTableNumber(tableNumber)
-        } else {
-          setTableInvalid(true)
-        }
-      })
-      .catch(() => setTableInvalid(true))
-  }, [])
+  // NFC / QR table session: ordering unlocks only for customers who tapped
+  // their table's NFC card (or QR) and persists for 2h. Everyone else browses
+  // the menu in view-only mode.
+  const { canOrder, tableNumber, token, resolving, tokenInvalid } = useTableSession()
 
   // Use React Query for menu fetching with deduplication & caching
-  const { data: menuData, isLoading, error: menuError } = useQuery({
+  const { data: menuData, error: menuError } = useQuery({
     queryKey: queryKeys.menu,
     queryFn: () => fetchMenu(),
     staleTime: 5 * 60 * 1000,
@@ -88,8 +57,6 @@ export default function App() {
       setLoading(false)
     }
   }, [menuError])
-  const [cartOpen, setCartOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
 
   // Apply language direction to the document.
   useEffect(() => {
@@ -121,7 +88,7 @@ export default function App() {
 
   const activeLabel = categories.find((c) => c.id === activeCat)?.label[lang]
 
-  if (tableInvalid) {
+  if (tokenInvalid) {
     return (
       <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
         <div dir={dir} className="flex min-h-screen flex-col items-center justify-center bg-bg px-6 text-center font-sans text-foreground">
@@ -149,7 +116,7 @@ export default function App() {
     )
   }
 
-  if (tableNumber === null) {
+  if (resolving) {
     return (
       <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
         <div dir={dir} className="flex min-h-screen flex-col items-center justify-center bg-bg font-sans text-foreground">
@@ -190,7 +157,7 @@ export default function App() {
     <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
       <div dir={dir} className="min-h-screen bg-bg font-sans text-foreground">
         <div className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
-          <Header tableNumber={tableNumber} />
+          <Header tableNumber={canOrder ? tableNumber : null} />
           {!isSearching && (
             <CategoryNav active={activeCat} onSelect={setActiveCat} categories={categories} />
           )}
@@ -233,12 +200,31 @@ export default function App() {
           )}
         </main>
 
-        <CartButton onOpen={() => setCartOpen(true)} />
+        {canOrder ? (
+          <CartButton onOpen={() => setCartOpen(true)} />
+        ) : (
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gold/30 bg-bg/95 px-4 py-3 pb-safe backdrop-blur">
+            <p className="mx-auto max-w-2xl text-center text-xs font-semibold leading-relaxed text-gold">
+              {strings.viewOnlyBanner[lang]}
+            </p>
+          </div>
+        )}
 
         {selectedItem && (
-          <MenuItemSheet item={selectedItem} onClose={() => setSelectedItem(null)} />
+          <MenuItemSheet
+            item={selectedItem}
+            onClose={() => setSelectedItem(null)}
+            canOrder={canOrder}
+          />
         )}
-        {cartOpen && <CartSheet tableNumber={tableNumber} token={tableToken} onClose={() => setCartOpen(false)} />}
+        {cartOpen && canOrder && tableNumber && token && (
+          <CartSheet
+            tableNumber={tableNumber}
+            token={token}
+            canOrder={canOrder}
+            onClose={() => setCartOpen(false)}
+          />
+        )}
       </div>
     </LangContext.Provider>
   )

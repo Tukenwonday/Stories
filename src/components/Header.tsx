@@ -1,7 +1,7 @@
 import { useLang } from "../lang-context"
 import { strings } from "../i18n"
 
-export default function Header({ tableNumber }: { tableNumber: string }) {
+export default function Header({ tableNumber }: { tableNumber: string | null }) {
   const { lang, toggle } = useLang()
 
   return (
@@ -25,12 +25,14 @@ export default function Header({ tableNumber }: { tableNumber: string }) {
       <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.28em] text-muted">
         {strings.tagline[lang]}
       </p>
-      <div className="mt-1 flex items-center gap-1.5">
-        <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-gold" />
-        <span className="text-[11px] text-muted">
-          {strings.table[lang]} {tableNumber}
-        </span>
-      </div>
+      {tableNumber && (
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-gold" />
+          <span className="text-[11px] text-muted">
+            {strings.table[lang]} {tableNumber}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

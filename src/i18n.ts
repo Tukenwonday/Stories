@@ -60,6 +60,14 @@ export const strings = {
     en: "You can't add this to your order right now.",
     ar: "لا يمكنك إضافته إلى طلبك الآن.",
   },
+  viewOnlyBanner: {
+    en: "View-Only Menu — Please tap the NFC card on your table to unlock ordering.",
+    ar: "قائمة للعرض فقط — يرجى لمس بطاقة NFC على طاولتك لفتح إمكانية الطلب.",
+  },
+  tapToOrder: {
+    en: "Tap NFC card to unlock ordering",
+    ar: "المس بطاقة NFC لفتح إمكانية الطلب",
+  },
 } as const
 
 export function t(key: keyof typeof strings, lang: Lang): string {

@@ -8,10 +8,12 @@ import { buildOrderPayload, submitOrder } from "../lib/supabase"
 export default function CartSheet({
   tableNumber,
   token,
+  canOrder,
   onClose,
 }: {
   tableNumber: string
   token: string
+  canOrder: boolean
   onClose: () => void
 }) {
   const { lang, dir } = useLang()
@@ -237,10 +239,14 @@ export default function CartSheet({
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || !canOrder}
                 className="mt-3 w-full rounded-full bg-gold py-3.5 text-sm font-bold text-bg transition-transform active:scale-[0.99] disabled:opacity-50"
               >
-                {submitting ? strings.placing[lang] : strings.placeOrder[lang]}
+                {submitting
+                  ? strings.placing[lang]
+                  : canOrder
+                    ? `${strings.placeOrder[lang]} · ${strings.table[lang]} ${tableNumber}`
+                    : strings.tapToOrder[lang]}
               </button>
             </div>
           </>
