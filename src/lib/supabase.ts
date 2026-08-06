@@ -17,8 +17,6 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
 
 // The Pages deployment acts as our CDN/proxy for Supabase storage.
 const PAGES_ORIGIN = "https://stories-7rn.pages.dev"
-// Legacy raw Supabase storage origin to rewrite.
-const SUPABASE_STORAGE_ORIGIN = "https://doinkehdvtgqzcikwwos.supabase.co"
 
 interface CategoryRow {
   id: string
@@ -55,38 +53,50 @@ export const queryKeys = {
 }
 
 /**
- * Builds a public image URL for menu-images bucket using the Pages origin.
- * Strips query params for clean, cacheable URLs.
+ * Builds a public image URL for the menu-images bucket using the Pages origin.
+ * Accepts a bare storage path ("dishes/abc.webp"), a legacy Supabase storage URL
+ * from any project subdomain, or an already-normalized Pages URL. Always returns
+ * a clean, cacheable Pages-origin URL (query params/fragments stripped) so the
+ * browser never loads from supabase.co directly.
  */
 export function buildPublicImageUrl(storagePath: string): string {
-  const cleanPath = storagePath.replace(/^\/+/, "").split("?")[0].split("#")[0]
-  // Already an absolute URL (Pages, Supabase, blob preview, etc.) — pass through.
-  if (cleanPath.includes("://")) return cleanPath
-  return `${PAGES_ORIGIN}/storage/v1/object/public/menu-images/${cleanPath}`
+  const clean = storagePath.trim().split("?")[0].split("#")[0]
+
+  // Already a Pages-origin URL — pass through.
+  if (clean.startsWith(PAGES_ORIGIN)) return clean
+
+  // Bare storage path (new staged uploads) — prefix with Pages origin.
+  if (!/^https?:\/\//i.test(clean)) {
+    const path = clean.replace(/^\/+/, "")
+    const renderedUrl = `${PAGES_ORIGIN}/storage/v1/object/public/menu-images/${path}`
+    console.log("[CDN DEBUG]", renderedUrl)
+    return renderedUrl
+  }
+
+  // Any Supabase storage URL (any subdomain) — extract the object path and
+  // re-host it under the Pages origin.
+  const marker = "/storage/v1/object/public/menu-images/"
+  const idx = clean.indexOf(marker)
+  if (idx !== -1) {
+    const path = clean.slice(idx + marker.length).replace(/^\/+/, "")
+    const renderedUrl = `${PAGES_ORIGIN}${marker}${path}`
+    console.log("[CDN DEBUG]", renderedUrl)
+    return renderedUrl
+  }
+
+  // Other absolute URL — pass through as-is.
+  return clean
 }
 
 /**
  * Normalizes an image value from the database to a full public URL.
- * - Bare storage paths (e.g. "dishes/abc.webp") → full Pages URL
- * - Legacy Supabase URLs → rewritten to Pages origin
- * - Already-Pages URLs → passed through
- * - Other absolute URLs → passed through
+ * Delegates to buildPublicImageUrl: bare paths get the Pages prefix, legacy
+ * Supabase URLs are re-hosted under the Pages origin, everything else passes
+ * through.
  */
 function publicImageUrl(value: string | null | undefined): string | undefined {
   if (!value) return undefined
-  // Already using Pages origin - pass through
-  if (value.startsWith(PAGES_ORIGIN)) return value
-  // Rewrite legacy Supabase storage URLs to Pages origin
-  if (value.startsWith(SUPABASE_STORAGE_ORIGIN)) {
-    const path = value.slice(SUPABASE_STORAGE_ORIGIN.length)
-    return `${PAGES_ORIGIN}${path}`
-  }
-  // Bare storage path (new uploads)
-  if (!/^https?:\/\//.test(value)) {
-    return buildPublicImageUrl(value)
-  }
-  // Other absolute URLs - pass through
-  return value
+  return buildPublicImageUrl(value)
 }
 
 /**
@@ -102,7 +112,11 @@ export async function fetchMenu(includeUnavailable = false): Promise<MenuData> {
   if (!supabase) {
     const res = await fetch("/menu.json")
     if (!res.ok) throw new Error("Failed to load menu data")
-    return (await res.json()) as MenuData
+    const data = (await res.json()) as MenuData
+    return {
+      categories: data.categories,
+      menu: data.menu.map((i) => (i.image ? { ...i, image: buildPublicImageUrl(i.image) } : i)),
+    }
   }
 
   const menuQuery = supabase
