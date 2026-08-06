@@ -53,9 +53,10 @@ function playNewOrderChime() {
 interface KitchenOrderItem {
   itemId: string
   title: string
+  title_ar?: string
   quantity: number
   unitPrice: number
-  modifiers: Array<{ group: string; option: string; price: number }>
+  modifiers: Array<{ group: string; group_ar?: string; option: string; option_ar?: string; price: number }>
 }
 
 interface KitchenOrder {
@@ -376,11 +377,13 @@ export default function Kitchen() {
                               <li key={j} className="flex items-start justify-between gap-3 py-1">
                                 <div className="min-w-0">
                                   <span className="text-sm font-semibold text-foreground">
-                                    {it.quantity}× {it.title}
+                                    {it.quantity}× {lang === "ar" ? (it.title_ar ?? it.title) : it.title}
                                   </span>
                                   {it.modifiers.length > 0 && (
                                     <span className="ms-2 text-[11px] text-muted">
-                                      {it.modifiers.map((m) => m.option).join(" · ")}
+                                      {it.modifiers
+                                        .map((m) => (lang === "ar" ? (m.option_ar ?? m.option) : m.option))
+                                        .join(" · ")}
                                     </span>
                                   )}
                                 </div>

@@ -350,11 +350,13 @@ export default function Checkout() {
                           <li key={i} className="flex items-start justify-between gap-3 py-2">
                             <div className="min-w-0">
                               <span className="text-sm font-semibold text-foreground">
-                                {it.quantity}× {it.title}
+                                {it.quantity}× {lang === "ar" ? (it.title_ar ?? it.title) : it.title}
                               </span>
                               {it.modifiers?.length > 0 && (
                                 <span className="ms-2 text-[11px] text-muted">
-                                  {it.modifiers.map((m: any) => m.option).join(" · ")}
+                                  {it.modifiers
+                                    .map((m: any) => (lang === "ar" ? (m.option_ar ?? m.option) : m.option))
+                                    .join(" · ")}
                                 </span>
                               )}
                             </div>
