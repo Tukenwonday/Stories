@@ -1319,7 +1319,7 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
                     return
                   }
                   setUpdatingPin(true)
-                  const ok = await updateKitchenPin(currentPin, newPin)
+                  const ok = await updateKitchenPin(currentPin.trim(), newPin.trim())
                   setUpdatingPin(false)
                   if (ok) {
                     sessionStorage.setItem("kitchenPin", newPin)

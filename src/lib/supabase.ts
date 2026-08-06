@@ -330,14 +330,14 @@ export async function submitOrder(
 }
 
 /**
- * Validates the kitchen PIN securely using the server-side RPC function.
+ * Validates the kitchen PIN using the server-side RPC function.
  * In demo mode, checks against "2026".
  */
 export async function verifyKitchenPin(pin: string): Promise<boolean> {
   if (!supabase) {
     return pin === "2026"
   }
-  const { data, error } = await supabase.rpc("verify_kitchen_pin", { p_pin: pin })
+  const { data, error } = await supabase.rpc("verify_kitchen_pin", { p_pin: pin.trim() })
   if (error) {
     console.error("[supabase] PIN verify error:", error.message)
     return false
@@ -347,14 +347,14 @@ export async function verifyKitchenPin(pin: string): Promise<boolean> {
 
 /**
  * Updates the kitchen PIN via the server-side RPC.
- * Verifies old PIN against bcrypt hash, stores new PIN as bcrypt hash.
+ * Verifies old PIN, stores new PIN as plain text.
  */
 export async function updateKitchenPin(oldPin: string, newPin: string): Promise<boolean> {
   if (!supabase) {
     // Demo mode: no-op success
     return true
   }
-  const { data, error } = await supabase.rpc("update_kitchen_pin", { p_old_pin: oldPin, p_new_pin: newPin })
+  const { data, error } = await supabase.rpc("update_kitchen_pin", { p_old_pin: oldPin.trim(), p_new_pin: newPin.trim() })
   if (error) {
     console.error("[supabase] PIN update error:", error.message)
     return false

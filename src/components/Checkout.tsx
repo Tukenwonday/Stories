@@ -48,11 +48,11 @@ export default function Checkout() {
 
   async function unlock() {
     setUnlocking(true)
-    const valid = await verifyKitchenPin(pin)
+    const valid = await verifyKitchenPin(pin.trim())
     setUnlocking(false)
     if (valid) {
       sessionStorage.setItem("checkoutAuthed", "1")
-      sessionStorage.setItem("kitchenPin", pin)
+      sessionStorage.setItem("kitchenPin", pin.trim())
       setAuthed(true)
       setPinError(false)
     } else {

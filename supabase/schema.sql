@@ -23,7 +23,7 @@
 -- 0. EXTENSIONS
 -- =============================================================================
 
-create extension if not exists pgcrypto;
+-- pgcrypto removed (no longer needed for plain-text PIN)
 
 -- =============================================================================
 -- 1. TABLES
@@ -198,61 +198,34 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- verify_kitchen_pin(text) -> boolean
--- Compares the submitted PIN against the bcrypt hash in app_config.
+-- Compares the submitted PIN against the stored value in app_config.
 -- Used by the kitchen and checkout dashboards to unlock staff screens.
 -- ---------------------------------------------------------------------------
-create or replace function internal_is_valid_kitchen_pin(p_pin text)
-returns boolean
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_stored_hash text;
-begin
-  select value into v_stored_hash from app_config where key = 'kitchen_pin';
-  if v_stored_hash is null then return false; end if;
-  -- Force re-hash legacy non-bcrypt seeds on the fly if needed
-  if v_stored_hash not like '$2%' then
-    return p_pin = v_stored_hash;
-  end if;
-  return v_stored_hash = crypt(p_pin, v_stored_hash);
-end;
-$$;
-
 create or replace function verify_kitchen_pin(p_pin text)
 returns boolean
 language plpgsql
 security definer
 as $$
 begin
-  if not internal_is_valid_kitchen_pin(p_pin) then
-    perform pg_sleep(1);
-    return false;
-  end if;
-  return true;
+  return p_pin = (select value from public.app_config where key = 'kitchen_pin');
 end;
 $$;
 
 -- ---------------------------------------------------------------------------
 -- update_kitchen_pin(text, text) -> boolean
--- Updates the kitchen PIN. Verifies old PIN via bcrypt, stores new PIN as bcrypt hash.
+-- Updates the kitchen PIN. Verifies old PIN, stores new PIN as plain text.
 -- ---------------------------------------------------------------------------
 create or replace function update_kitchen_pin(p_old_pin text, p_new_pin text)
 returns boolean
 language plpgsql
 security definer
 as $$
-declare
-  v_stored_hash text;
 begin
-  -- Verify old PIN via central helper
-  if not internal_is_valid_kitchen_pin(p_old_pin) then
+  if p_old_pin != (select value from public.app_config where key = 'kitchen_pin') then
     perform pg_sleep(1);
     return false;
   end if;
-  -- Update with new bcrypt hash
-  update public.app_config set value = crypt(p_new_pin, gen_salt('bf')) where key = 'kitchen_pin';
+  update public.app_config set value = p_new_pin where key = 'kitchen_pin';
   return true;
 end;
 $$;
@@ -419,7 +392,7 @@ create or replace function insert_menu_item_secure(
   p_modifiers jsonb
 ) returns void language plpgsql security definer as $$
 begin
-  if not internal_is_valid_kitchen_pin(p_pin) then
+  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
 
@@ -454,7 +427,7 @@ create or replace function update_menu_item_secure(
   p_modifiers jsonb
 ) returns void language plpgsql security definer as $$
 begin
-  if not internal_is_valid_kitchen_pin(p_pin) then
+  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
 
@@ -480,7 +453,7 @@ create or replace function delete_menu_item_secure(
   p_id text
 ) returns void language plpgsql security definer as $$
 begin
-  if not internal_is_valid_kitchen_pin(p_pin) then
+  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
 
@@ -500,7 +473,7 @@ create or replace function insert_category_secure(
 declare
   v_sort integer;
 begin
-  if not internal_is_valid_kitchen_pin(p_pin) then
+  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
 
@@ -523,7 +496,7 @@ create or replace function delete_category_secure(
   p_id text
 ) returns void language plpgsql security definer as $$
 begin
-  if not internal_is_valid_kitchen_pin(p_pin) then
+  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
 
@@ -540,7 +513,7 @@ create or replace function clear_table_orders_secure(
   p_table_number text
 ) returns void language plpgsql security definer as $$
 begin
-  if not internal_is_valid_kitchen_pin(p_pin) then
+  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
 
@@ -556,7 +529,7 @@ create or replace function mark_order_paid_secure(
   p_order_id text
 ) returns void language plpgsql security definer as $$
 begin
-  if not internal_is_valid_kitchen_pin(p_pin) then
+  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
 
@@ -568,12 +541,10 @@ $$;
 -- 7. SEED DATA
 -- =============================================================================
 
--- Default kitchen PIN (bcrypt hash of '2026'). Change via the "Change Kitchen Passphrase" UI.
+-- Default kitchen PIN (plain text). Change via the "Change Kitchen Passphrase" UI.
 insert into public.app_config (key, value)
-values ('kitchen_pin', crypt('2026', gen_salt('bf')))
-on conflict (key)
-do update set value = crypt(app_config.value, gen_salt('bf'))
-where app_config.value not like '$2%';
+values ('kitchen_pin', '2026')
+on conflict (key) do nothing;
 
 -- Table QR tokens. These are the same tokens used by table-links.md; adding a
 -- table means adding one row here and one link in that file.

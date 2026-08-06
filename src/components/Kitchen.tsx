@@ -96,12 +96,12 @@ export default function Kitchen() {
 
   async function unlock() {
     setUnlocking(true)
-    const ok = await verifyKitchenPin(pin)
+    const ok = await verifyKitchenPin(pin.trim())
     setUnlocking(false)
     if (ok) {
       ensureAudio()
       sessionStorage.setItem("kitchenAuthed", "1")
-      sessionStorage.setItem("kitchenPin", pin)
+      sessionStorage.setItem("kitchenPin", pin.trim())
       setAuthed(true)
       setPinError(false)
     } else {
