@@ -6,6 +6,7 @@ import { strings } from "../i18n"
 import { useCart } from "../store/cart"
 import { getUnavailableReason } from "../lib/availability"
 import { unavailableLabel } from "./MenuItemCard"
+import { buildPublicImageUrl } from "../lib/supabase"
 
 /** Pre-select the first option for required single-choice groups. */
 function initialSelection(item: MenuItem): Record<string, string[]> {
@@ -88,7 +89,7 @@ export default function MenuItemSheet({
         {/* Image header */}
         {item.image && (
           <div className="relative shrink-0">
-            <img src={item.image} alt={item.title.en} loading="lazy" decoding="async" className="h-52 w-full object-cover" />
+            <img src={buildPublicImageUrl(item.image)} alt={item.title.en} loading="lazy" decoding="async" className="h-52 w-full object-cover" />
             <button
               type="button"
               onClick={onClose}

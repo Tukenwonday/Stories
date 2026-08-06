@@ -4,6 +4,7 @@ import { useLang } from "../lang-context"
 import { strings } from "../i18n"
 import { getUnavailableReason, type UnavailableReason } from "../lib/availability"
 import type { Lang } from "../types"
+import { buildPublicImageUrl } from "../lib/supabase"
 
 export function unavailableLabel(reason: UnavailableReason | null, lang: Lang): string | null {
   if (reason === "stock") return strings.unavailable[lang]
@@ -32,7 +33,7 @@ export default function MenuItemCard({
       {item.image && (
         <div className="relative shrink-0">
           <img
-            src={item.image}
+            src={buildPublicImageUrl(item.image)}
             alt={item.title.en}
             loading="lazy"
             decoding="async"

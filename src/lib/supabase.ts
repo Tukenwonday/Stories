@@ -60,6 +60,8 @@ export const queryKeys = {
  */
 export function buildPublicImageUrl(storagePath: string): string {
   const cleanPath = storagePath.replace(/^\/+/, "").split("?")[0].split("#")[0]
+  // Already an absolute URL (Pages, Supabase, blob preview, etc.) — pass through.
+  if (cleanPath.includes("://")) return cleanPath
   return `${PAGES_ORIGIN}/storage/v1/object/public/menu-images/${cleanPath}`
 }
 

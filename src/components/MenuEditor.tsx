@@ -3,7 +3,7 @@ import type { ChangeEvent, ReactNode } from "react"
 import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X, Key, AlertCircle, CheckCircle } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
-import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem, updateKitchenPin, supabase } from "../lib/supabase"
+import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem, updateKitchenPin, supabase, buildPublicImageUrl } from "../lib/supabase"
 import { deleteStorageObject } from "../lib/upload"
 import { compressImage } from "../lib/images"
 import type {
@@ -736,7 +736,7 @@ function ItemEditModal({
                 <div className="flex flex-wrap items-center gap-3">
                   {form.image ? (
                     <img
-                      src={form.image}
+                      src={buildPublicImageUrl(form.image)}
                       alt=""
                       loading="lazy"
                       decoding="async"
@@ -995,7 +995,7 @@ function ItemCard({
           {/* Thumbnail */}
           {item.image && (
             <img
-              src={item.image}
+              src={buildPublicImageUrl(item.image)}
               alt=""
               loading="lazy"
               decoding="async"
