@@ -325,7 +325,6 @@ export default function Kitchen() {
                   const date = new Date(o.created_at)
                   const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
                   if (i > 0 && dateKey !== lastDate) {
-                    lastDate = dateKey
                     items.push(
                       <li key={`day-${dateKey}`} className="list-none py-3">
                         <div className="flex items-center gap-3">
@@ -338,6 +337,7 @@ export default function Kitchen() {
                       </li>,
                     )
                   }
+                  lastDate = dateKey
                   const isNew = now - date.getTime() < 15000
                   items.push(
                     <li
