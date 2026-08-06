@@ -29,7 +29,7 @@ export default function App() {
   // NFC / QR table session: ordering unlocks only for customers who tapped
   // their table's NFC card (or QR) and persists for 2h. Everyone else browses
   // the menu in view-only mode.
-  const { canOrder, tableNumber, token, resolving, tokenInvalid } = useTableSession()
+  const { canOrder, tableNumber, token, resolving, tokenInvalid, expired } = useTableSession()
 
   // Use React Query for menu fetching with deduplication & caching
   const { data: menuData, error: menuError } = useQuery({
@@ -157,7 +157,7 @@ export default function App() {
     <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
       <div dir={dir} className="min-h-screen bg-bg font-sans text-foreground">
         <div className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
-          <Header tableNumber={canOrder ? tableNumber : null} />
+          <Header tableNumber={tableNumber} />
           {!isSearching && (
             <CategoryNav active={activeCat} onSelect={setActiveCat} categories={categories} />
           )}
@@ -200,7 +200,13 @@ export default function App() {
           )}
         </main>
 
-        {canOrder ? (
+        {expired ? (
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-red-500/40 bg-bg/95 px-4 py-3 pb-safe backdrop-blur">
+            <p className="mx-auto max-w-2xl text-center text-xs font-semibold leading-relaxed text-red-400">
+              {strings.sessionExpiredBanner[lang]}
+            </p>
+          </div>
+        ) : canOrder ? (
           <CartButton onOpen={() => setCartOpen(true)} />
         ) : (
           <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gold/30 bg-bg/95 px-4 py-3 pb-safe backdrop-blur">
@@ -217,7 +223,7 @@ export default function App() {
             canOrder={canOrder}
           />
         )}
-        {cartOpen && canOrder && tableNumber && token && (
+        {cartOpen && tableNumber && token && (
           <CartSheet
             tableNumber={tableNumber}
             token={token}

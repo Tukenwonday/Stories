@@ -64,6 +64,10 @@ export const strings = {
     en: "View-Only Menu — Please tap the NFC card on your table to unlock ordering.",
     ar: "قائمة للعرض فقط — يرجى لمس بطاقة NFC على طاولتك لفتح إمكانية الطلب.",
   },
+  sessionExpiredBanner: {
+    en: "Session expired — please tap your table's NFC card again to keep ordering.",
+    ar: "انتهت الجلسة — يرجى لمس بطاقة NFC على طاولتك مرة أخرى للمتابعة.",
+  },
   tapToOrder: {
     en: "Tap NFC card to unlock ordering",
     ar: "المس بطاقة NFC لفتح إمكانية الطلب",

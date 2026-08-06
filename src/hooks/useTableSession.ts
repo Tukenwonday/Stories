@@ -68,6 +68,10 @@ export function useTableSession() {
   const [resolving, setResolving] = useState(false)
   // True when a token was present in the URL but failed to resolve.
   const [tokenInvalid, setTokenInvalid] = useState(false)
+  // True once the 2h session has lapsed while the app is still open. The
+  // session data is kept in memory so an in-flight order submission can
+  // finish, but ordering is disabled and a "tap your tag again" banner shows.
+  const [expired, setExpired] = useState(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -108,11 +112,31 @@ export function useTableSession() {
     }
   }, [])
 
+  // Auto-expire the session exactly at its deadline, without needing a reload.
+  // The in-memory session is kept (so an in-flight submission can finish),
+  // but localStorage is purged so a later reload lands in view-only mode.
+  useEffect(() => {
+    if (!session) return
+    setExpired(false)
+    const msLeft = session.expiry - Date.now()
+    if (msLeft <= 0) {
+      setExpired(true)
+      clearSession()
+      return
+    }
+    const timer = setTimeout(() => {
+      setExpired(true)
+      clearSession()
+    }, msLeft)
+    return () => clearTimeout(timer)
+  }, [session])
+
   return {
-    canOrder: session !== null,
+    canOrder: session !== null && !expired,
     tableNumber: session?.table ?? null,
     token: session?.token ?? null,
     resolving,
     tokenInvalid,
+    expired,
   }
 }
