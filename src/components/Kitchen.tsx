@@ -136,23 +136,32 @@ export default function Kitchen() {
     if (!authed || !client) return
     load()
 
+    const insertDebounceRef = { current: null as ReturnType<typeof setTimeout> | null }
+    const updateDebounceRef = { current: null as ReturnType<typeof setTimeout> | null }
+
     const channel = client
       .channel("kitchen-orders")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders" },
+        { event: "INSERT", schema: "public", table: "orders", filter: "paid=eq.false" },
         (payload) => {
-          const row = payload.new as KitchenOrder
-          setOrders((prev) => [row, ...prev.filter((o) => o.id !== row.id)].slice(0, 50))
-          playNewOrderChime()
+          if (insertDebounceRef.current) clearTimeout(insertDebounceRef.current)
+          insertDebounceRef.current = setTimeout(() => {
+            const row = payload.new as KitchenOrder
+            setOrders((prev) => [row, ...prev.filter((o) => o.id !== row.id)].slice(0, 50))
+            playNewOrderChime()
+          }, 300)
         },
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders" },
+        { event: "UPDATE", schema: "public", table: "orders", filter: "paid=eq.false" },
         (payload) => {
-          const row = payload.new as KitchenOrder
-          setOrders((prev) => prev.map((o) => (o.id === row.id ? row : o)))
+          if (updateDebounceRef.current) clearTimeout(updateDebounceRef.current)
+          updateDebounceRef.current = setTimeout(() => {
+            const row = payload.new as KitchenOrder
+            setOrders((prev) => prev.map((o) => (o.id === row.id ? row : o)))
+          }, 300)
         },
       )
       .subscribe((status) => {
@@ -161,6 +170,8 @@ export default function Kitchen() {
 
     return () => {
       client.removeChannel(channel)
+      if (insertDebounceRef.current) clearTimeout(insertDebounceRef.current)
+      if (updateDebounceRef.current) clearTimeout(updateDebounceRef.current)
     }
   }, [authed, load])
 
@@ -171,7 +182,8 @@ export default function Kitchen() {
 
     const resync = () => {
       if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
-      resyncTimeoutRef.current = setTimeout(() => void load(), 5000)
+      const jitter = Math.random() * 3000
+      resyncTimeoutRef.current = setTimeout(() => void load(), 5000 + jitter)
     }
     const resyncWhenVisible = () => {
       if (document.visibilityState === "visible") resync()

@@ -33,7 +33,14 @@ export default function CartSheet({
     setSubmitting(true)
     setServerError(null)
 
-    const payload = buildOrderPayload({ tableNumber, customerName: name, notes, lines })
+    let payload
+    try {
+      payload = buildOrderPayload({ tableNumber, customerName: name, notes, lines })
+    } catch (e) {
+      setSubmitting(false)
+      setServerError(e instanceof Error ? e.message : "Something went wrong")
+      return
+    }
     const res = await submitOrder(payload, token)
 
     setSubmitting(false)

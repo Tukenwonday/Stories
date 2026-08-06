@@ -183,6 +183,19 @@ create policy "menu-images delete" on storage.objects
 -- anon key. Each one is gated by a table token or the kitchen PIN.
 
 -- ---------------------------------------------------------------------------
+-- cleanup_old_orders() -> void
+-- Removes paid orders older than 90 days. Run via pg_cron daily.
+-- ---------------------------------------------------------------------------
+create or replace function cleanup_old_orders()
+returns void language plpgsql security definer as $$
+begin
+  delete from public.orders
+  where paid = true
+    and created_at < now() - interval '90 days';
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- resolve_table_token(text) -> text
 -- Resolves a QR token to its table number. Returns NULL for unknown tokens.
 -- Used by the storefront (src/lib/supabase.ts) to authorize a table session.
@@ -289,12 +302,15 @@ begin
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
     raise exception 'Empty order';
   end if;
+  if jsonb_array_length(p_items) > 50 then
+    raise exception 'Maximum 50 items per order';
+  end if;
 
   -- Rebuild each line from the authoritative menu row.
   for v_item in select value from jsonb_array_elements(p_items) loop
     v_qty := (v_item->>'quantity')::int;
-    if v_qty is null or v_qty < 1 then
-      raise exception 'Invalid quantity';
+    if v_qty is null or v_qty < 1 or v_qty > 99 then
+      raise exception 'Quantity must be 1-99';
     end if;
 
     select * into v_menu from public.menu where id = v_item->>'itemId';
@@ -461,12 +477,20 @@ create or replace function delete_menu_item_secure(
   p_pin text,
   p_id text
 ) returns void language plpgsql security definer as $$
+declare
+  v_image text;
 begin
   if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
 
+  select image into v_image from public.menu where id = p_id;
+
   delete from public.menu where id = p_id;
+
+  if v_image is not null then
+    perform storage.remove(array[v_image]);
+  end if;
 end;
 $$;
 
@@ -504,13 +528,22 @@ create or replace function delete_category_secure(
   p_pin text,
   p_id text
 ) returns void language plpgsql security definer as $$
+declare
+  v_images text[];
 begin
   if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
 
+  select array_agg(image) into v_images
+  from public.menu where category = p_id and image is not null;
+
   delete from public.menu where category = p_id;
   delete from public.categories where id = p_id;
+
+  if v_images is not null then
+    perform storage.remove(v_images);
+  end if;
 end;
 $$;
 

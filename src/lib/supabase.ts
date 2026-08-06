@@ -50,6 +50,17 @@ export const queryKeys = {
 }
 
 /**
+ * Menu image rows may store a full public URL (legacy) or a bare storage path
+ * (new staged uploads, e.g. "dishes/abc.webp"). Normalize bare paths to a full
+ * public URL so <img src> works everywhere.
+ */
+function publicImageUrl(value: string | null | undefined): string | undefined {
+  if (!value) return undefined
+  if (/^https?:\/\//.test(value)) return value
+  return `${url}/storage/v1/object/public/menu-images/${value.replace(/^\/+/, "")}`
+}
+
+/**
  * Loads the menu. When Supabase is configured it reads the `categories` and
  * `menu` tables; otherwise it falls back to the bundled public/menu.json so
  * the app still works without credentials (demo mode).
@@ -70,6 +81,7 @@ export async function fetchMenu(includeUnavailable = false): Promise<MenuData> {
     .select(
       "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates",
     )
+    .limit(200)
   if (!includeUnavailable) {
     menuQuery.eq("is_available", true)
   }
@@ -96,7 +108,7 @@ export async function fetchMenu(includeUnavailable = false): Promise<MenuData> {
     title: { en: r.title_en, ar: r.title_ar },
     description: { en: r.description_en, ar: r.description_ar },
     price: Number(r.price),
-    image: r.image ?? undefined,
+    image: publicImageUrl(r.image),
     tag: r.tag_en ? { en: r.tag_en, ar: r.tag_ar ?? "" } : undefined,
     modifiers: r.modifiers,
     notServedWindows: (r.not_served_windows ?? []).map((w) => ({
@@ -278,6 +290,18 @@ export function buildOrderPayload(args: {
   notes: string
   lines: CartLine[]
 }): OrderPayload {
+  const MAX_ITEMS = 50
+  const MAX_QTY = 99
+
+  if (args.lines.length > MAX_ITEMS) {
+    throw new Error(`Maximum ${MAX_ITEMS} items per order`)
+  }
+  for (const line of args.lines) {
+    if (line.quantity > MAX_QTY) {
+      throw new Error(`Maximum quantity per item is ${MAX_QTY}`)
+    }
+  }
+
   const now = new Date()
   return {
     table_number: args.tableNumber,

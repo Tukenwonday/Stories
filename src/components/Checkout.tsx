@@ -116,7 +116,7 @@ export default function Checkout() {
       .channel("checkout-orders")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders" },
+        { event: "INSERT", schema: "public", table: "orders", filter: "paid=eq.false" },
         (payload) => {
           if (view === "detail" && selectedTable && payload.new.table_number === selectedTable) {
             debouncedReload()
@@ -153,7 +153,8 @@ export default function Checkout() {
 
     const resync = () => {
       if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
-      resyncTimeoutRef.current = setTimeout(() => void reloadCurrentView(), 5000)
+      const jitter = Math.random() * 3000
+      resyncTimeoutRef.current = setTimeout(() => void reloadCurrentView(), 5000 + jitter)
     }
     const resyncWhenVisible = () => {
       if (document.visibilityState === "visible") resync()

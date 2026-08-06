@@ -3,8 +3,9 @@ import type { ChangeEvent, ReactNode } from "react"
 import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X, Key, AlertCircle, CheckCircle } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
-import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem, updateKitchenPin } from "../lib/supabase"
-import { uploadMenuItemImage, deleteStorageObject } from "../lib/upload"
+import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem, updateKitchenPin, supabase } from "../lib/supabase"
+import { deleteStorageObject } from "../lib/upload"
+import { compressImage } from "../lib/images"
 import type {
   Category,
   Lang,
@@ -237,7 +238,7 @@ function windowsToHours(windows: NotServedWindow[]): number[] {
   return [...hours]
 }
 
-/* ── ItemForm interface with helper for storage path extraction ── */
+/* ── ItemForm interface ── */
 interface ItemForm {
   category: string
   titleEn: string
@@ -246,7 +247,6 @@ interface ItemForm {
   descAr: string
   price: string
   image: string
-  oldImagePath?: string
   hours: number[]
   isAvailable: boolean
   modifiers: ModifierGroup[]
@@ -501,6 +501,7 @@ function ItemEditModal({
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [stagedImage, setStagedImage] = useState<{ url: string; path: string; blob: Blob } | null>(null)
 
   const windows = useMemo(() => hoursToWindows(form.hours), [form.hours])
 
@@ -522,13 +523,33 @@ function ItemEditModal({
     }
     setSaving(true)
     const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
+
+    let imageToSave = form.image.trim() || null
+    let oldImagePath: string | undefined
+
+    // Upload staged image if present
+    if (stagedImage) {
+      const { error } = await supabase!.storage.from("menu-images").upload(stagedImage.path, stagedImage.blob, {
+        contentType: stagedImage.blob.type,
+        upsert: true,
+        cacheControl: "31536000",
+      })
+      if (error) {
+        setSaving(false)
+        setSaveError(error.message)
+        return
+      }
+      imageToSave = stagedImage.path
+      oldImagePath = item.image ? extractStoragePath(item.image) : undefined
+    }
+
     const fields = {
       title_en: form.titleEn,
       title_ar: form.titleAr,
       description_en: form.descEn,
       description_ar: form.descAr,
       price,
-      image: form.image.trim() || null,
+      image: imageToSave,
       not_served_windows: windows,
       is_available: form.isAvailable,
       modifiers: form.modifiers,
@@ -539,9 +560,14 @@ function ItemEditModal({
         : await updateMenuItem(pin, item.id, fields)
     setSaving(false)
     if (res.ok) {
-      // If image was uploaded and we have an old path to clean up, delete it now
-      if (form.oldImagePath && form.image && form.oldImagePath !== form.image) {
-        void deleteStorageObject(form.oldImagePath)
+      // Clean up old storage object if image changed
+      if (oldImagePath && oldImagePath !== imageToSave) {
+        await deleteStorageObject(oldImagePath)
+      }
+      // Revoke preview URL
+      if (stagedImage) {
+        URL.revokeObjectURL(stagedImage.url)
+        setStagedImage(null)
       }
       setSaved(true)
       setTimeout(() => {
@@ -557,13 +583,13 @@ function ItemEditModal({
   async function handleUploadImage(file: File) {
     setUploadError(null)
     setUploading(true)
-    const res = await uploadMenuItemImage(file, item.id, form.image)
+    const { blob, ext } = await compressImage(file)
+    const safeItem = item.id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "misc"
+    const path = `dishes/${safeItem}-${Date.now()}.${ext}`
+    const previewUrl = URL.createObjectURL(blob)
+    setStagedImage({ url: previewUrl, path, blob })
+    patch({ image: previewUrl })
     setUploading(false)
-    if (res.ok && res.url) {
-      patch({ image: res.url, oldImagePath: res.oldPath })
-    } else {
-      setUploadError(res.error ?? "Upload failed")
-    }
   }
 
   function onFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -605,8 +631,11 @@ function ItemEditModal({
     document.body.style.overflow = "hidden"
     return () => {
       document.body.style.overflow = ""
+      if (stagedImage) {
+        URL.revokeObjectURL(stagedImage.url)
+      }
     }
-  }, [])
+  }, [stagedImage])
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center animate-backdrop">
