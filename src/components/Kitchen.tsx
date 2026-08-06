@@ -154,10 +154,34 @@ export default function Kitchen() {
           setOrders((prev) => prev.map((o) => (o.id === row.id ? row : o)))
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        // Initial load already ran in useEffect; no need to reload on SUBSCRIBED
+      })
 
     return () => {
       client.removeChannel(channel)
+    }
+  }, [authed, load])
+
+  useEffect(() => {
+    if (!authed) return
+
+    const resyncTimeoutRef = { current: null as ReturnType<typeof setTimeout> | null }
+
+    const resync = () => {
+      if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
+      resyncTimeoutRef.current = setTimeout(() => void load(), 5000)
+    }
+    const resyncWhenVisible = () => {
+      if (document.visibilityState === "visible") resync()
+    }
+
+    window.addEventListener("online", resync)
+    document.addEventListener("visibilitychange", resyncWhenVisible)
+    return () => {
+      window.removeEventListener("online", resync)
+      document.removeEventListener("visibilitychange", resyncWhenVisible)
+      if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
     }
   }, [authed, load])
 
@@ -183,7 +207,7 @@ export default function Kitchen() {
             className="mt-8 w-full max-w-xs"
           >
             <input
-              type="text"
+              type="password"
               autoFocus
               value={pin}
               onChange={(e) => {
@@ -300,10 +324,10 @@ export default function Kitchen() {
                 orders.forEach((o, i) => {
                   const date = new Date(o.created_at)
                   const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-                  if (dateKey !== lastDate) {
+                  if (i > 0 && dateKey !== lastDate) {
                     lastDate = dateKey
                     items.push(
-                      <li key={`day-${dateKey}`} className="py-3">
+                      <li key={`day-${dateKey}`} className="list-none py-3">
                         <div className="flex items-center gap-3">
                           <span className="h-px flex-1 bg-border" />
                           <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-gold">
@@ -319,7 +343,7 @@ export default function Kitchen() {
                     <li
                       key={o.id}
                       className={
-                        "py-5 " + (isNew ? "rounded-xl bg-gold/5 px-3 shadow-inner shadow-gold/10" : "")
+                        "list-none py-5 " + (isNew ? "rounded-xl bg-gold/5 px-3 shadow-inner shadow-gold/10" : "")
                       }
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -347,7 +371,7 @@ export default function Kitchen() {
                             })}
                           </div>
 
-                          <ul className="mt-2">
+                          <ul className="mt-2 list-none">
                             {o.items.map((it, j) => (
                               <li key={j} className="flex items-start justify-between gap-3 py-1">
                                 <div className="min-w-0">

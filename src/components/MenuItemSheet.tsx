@@ -88,7 +88,7 @@ export default function MenuItemSheet({
         {/* Image header */}
         {item.image && (
           <div className="relative shrink-0">
-            <img src={item.image} alt={item.title.en} className="h-52 w-full object-cover" />
+            <img src={item.image} alt={item.title.en} loading="lazy" decoding="async" className="h-52 w-full object-cover" />
             <button
               type="button"
               onClick={onClose}

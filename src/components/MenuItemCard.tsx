@@ -35,6 +35,7 @@ export default function MenuItemCard({
             src={item.image}
             alt={item.title.en}
             loading="lazy"
+            decoding="async"
             className={
               "h-20 w-20 rounded-lg border border-gold/25 object-cover " +
               (reason ? "opacity-50" : "")

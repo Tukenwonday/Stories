@@ -43,16 +43,35 @@ export interface MenuData {
   menu: MenuItem[]
 }
 
+export const queryKeys = {
+  menu: ["menu"] as const,
+  tablesSummary: ["tables-summary"] as const,
+  tableOrders: (tableNumber: string) => ["table-orders", tableNumber] as const,
+}
+
 /**
  * Loads the menu. When Supabase is configured it reads the `categories` and
  * `menu` tables; otherwise it falls back to the bundled public/menu.json so
  * the app still works without credentials (demo mode).
+ *
+ * `includeUnavailable` defaults to false so the storefront only sees live
+ * dishes. Pass true from staff screens (MenuEditor) so disabled dishes can
+ * still be viewed and edited.
  */
-export async function fetchMenu(): Promise<MenuData> {
+export async function fetchMenu(includeUnavailable = false): Promise<MenuData> {
   if (!supabase) {
     const res = await fetch("/menu.json")
     if (!res.ok) throw new Error("Failed to load menu data")
     return (await res.json()) as MenuData
+  }
+
+  const menuQuery = supabase
+    .from("menu")
+    .select(
+      "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates",
+    )
+  if (!includeUnavailable) {
+    menuQuery.eq("is_available", true)
   }
 
   const [cats, items] = await Promise.all([
@@ -60,11 +79,7 @@ export async function fetchMenu(): Promise<MenuData> {
       .from("categories")
       .select("id,label_en,label_ar")
       .order("sort_order", { ascending: true }),
-    supabase
-      .from("menu")
-      .select(
-        "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates",
-      ),
+    menuQuery,
   ])
 
   if (cats.error) throw new Error(cats.error.message)
@@ -237,14 +252,24 @@ export interface OrderPayload {
   customer_name: string
   notes: string
   payment_method: "waiter"
+  local_date: string
+  local_time: string
   items: Array<{
     itemId: string
-    title: string
     quantity: number
-    unitPrice: number
-    modifiers: Array<{ group: string; option: string; price: number }>
+    modifiers: Array<{ groupId: string; optionId: string }>
   }>
-  total: number
+}
+
+function localDateKey(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+function localTimeKey(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
 }
 
 export function buildOrderPayload(args: {
@@ -252,23 +277,21 @@ export function buildOrderPayload(args: {
   customerName: string
   notes: string
   lines: CartLine[]
-  total: number
 }): OrderPayload {
+  const now = new Date()
   return {
     table_number: args.tableNumber,
     customer_name: args.customerName.trim(),
     notes: args.notes.trim(),
     payment_method: "waiter",
-    total: args.total,
+    local_date: localDateKey(now),
+    local_time: localTimeKey(now),
     items: args.lines.map((l) => ({
       itemId: l.itemId,
-      title: l.title.en,
       quantity: l.quantity,
-      unitPrice: l.unitPrice,
       modifiers: l.modifiers.map((m) => ({
-        group: m.groupLabel.en,
-        option: m.optionLabel.en,
-        price: m.price,
+        groupId: m.groupId,
+        optionId: m.optionId,
       })),
     })),
   }
@@ -296,7 +319,8 @@ export async function submitOrder(
     p_customer_name: payload.customer_name,
     p_notes: payload.notes,
     p_items: payload.items,
-    p_total: payload.total,
+    p_local_date: payload.local_date,
+    p_local_time: payload.local_time,
   })
   if (error) {
     console.log("[v0] Supabase insert error:", error.message)
@@ -321,6 +345,23 @@ export async function verifyKitchenPin(pin: string): Promise<boolean> {
   return Boolean(data)
 }
 
+/**
+ * Updates the kitchen PIN via the server-side RPC.
+ * Verifies old PIN against bcrypt hash, stores new PIN as bcrypt hash.
+ */
+export async function updateKitchenPin(oldPin: string, newPin: string): Promise<boolean> {
+  if (!supabase) {
+    // Demo mode: no-op success
+    return true
+  }
+  const { data, error } = await supabase.rpc("update_kitchen_pin", { p_old_pin: oldPin, p_new_pin: newPin })
+  if (error) {
+    console.error("[supabase] PIN update error:", error.message)
+    return false
+  }
+  return Boolean(data)
+}
+
 export interface TableSummary {
   tableNumber: string
   orderCount: number
@@ -336,6 +377,7 @@ export async function fetchTablesSummary(): Promise<TableSummary[]> {
     .select("table_number, total, created_at")
     .gte("created_at", oneDayAgo)
     .order("created_at", { ascending: false })
+    .limit(200)
 
   if (error) throw new Error(error.message)
 
@@ -372,6 +414,7 @@ export async function fetchTableOrders(tableNumber: string): Promise<any[]> {
     .select("*")
     .eq("table_number", tableNumber)
     .order("created_at", { ascending: false })
+    .limit(50)
 
   if (error) throw new Error(error.message)
   return data ?? []

@@ -6,6 +6,7 @@ const BUCKET = "menu-images"
 export interface UploadResult {
   ok: boolean
   url?: string
+  oldPath?: string
   error?: string
 }
 
@@ -24,9 +25,8 @@ function extractBucketPath(value: string, bucket: string): string | null {
 
 /**
  * Compresses a photo in the browser and uploads it to the Supabase
- * `menu-images` bucket. When `oldImage` points at an existing object in that
- * bucket, the previous photo is removed so each item keeps a single image.
- * Returns the public storage URL for the menu row.
+ * `menu-images` bucket under a flat `dishes/` folder.
+ * Returns the public storage URL and the old storage path (if any) for deferred deletion.
  */
 export async function uploadMenuItemImage(
   file: File,
@@ -39,38 +39,35 @@ export async function uploadMenuItemImage(
   try {
     const { blob, ext } = await compressImage(file)
     const safeItem = itemId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "misc"
-    const path = `${safeItem}/${Date.now()}.${ext}`
+    const path = `dishes/${safeItem}-${Date.now()}.${ext}`
+
+    const oldPath = oldImage ? extractBucketPath(oldImage, BUCKET) : null
 
     const { error: upError } = await supabase.storage.from(BUCKET).upload(path, blob, {
       contentType: blob.type,
-      upsert: false,
+      upsert: true,
+      cacheControl: "31536000",
     })
     if (upError) return { ok: false, error: upError.message }
 
-    const stale = new Set<string>()
-
-    if (oldImage) {
-      const oldPath = extractBucketPath(oldImage, BUCKET)
-      if (oldPath && oldPath !== path) stale.add(oldPath)
-    }
-
-    try {
-      const { data: existing } = await supabase.storage.from(BUCKET).list(safeItem)
-      for (const f of existing ?? []) {
-        const candidate = `${safeItem}/${f.name}`
-        if (candidate !== path) stale.add(candidate)
-      }
-    } catch {
-      // Listing is best-effort; the oldImage removal above still applies.
-    }
-
-    if (stale.size > 0) {
-      const { error: rmError } = await supabase.storage.from(BUCKET).remove([...stale])
-      if (rmError) console.warn("Could not remove old photo:", rmError.message)
-    }
-
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
-    return { ok: true, url: data.publicUrl }
+    return { ok: true, url: data.publicUrl, oldPath: oldPath ?? undefined }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/**
+ * Deletes a storage object by path.
+ */
+export async function deleteStorageObject(path: string): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) {
+    return { ok: false, error: "Storage not configured" }
+  }
+  try {
+    const { error } = await supabase.storage.from(BUCKET).remove([path])
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }

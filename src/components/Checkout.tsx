@@ -88,6 +88,14 @@ export default function Checkout() {
     }
   }, [])
 
+  const reloadCurrentView = useCallback(async () => {
+    if (view === "dashboard") {
+      await loadDashboard()
+    } else if (selectedTable) {
+      await loadDetail(selectedTable)
+    }
+  }, [view, selectedTable, loadDashboard, loadDetail])
+
   useEffect(() => {
     if (authed && view === "dashboard") loadDashboard()
   }, [authed, view, loadDashboard])
@@ -99,30 +107,66 @@ export default function Checkout() {
   useEffect(() => {
     if (!authed || !supabase) return
     const client = supabase
+    const reloadDebounceRef = { current: null as ReturnType<typeof setTimeout> | null }
+    const debouncedReload = () => {
+      if (reloadDebounceRef.current) clearTimeout(reloadDebounceRef.current)
+      reloadDebounceRef.current = setTimeout(() => void reloadCurrentView(), 800)
+    }
     const channel = client
       .channel("checkout-orders")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders" },
-        () => {
-          if (view === "dashboard") loadDashboard()
-          else if (selectedTable) loadDetail(selectedTable)
+        (payload) => {
+          if (view === "detail" && selectedTable && payload.new.table_number === selectedTable) {
+            debouncedReload()
+          } else if (view === "dashboard") {
+            debouncedReload()
+          }
         }
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "orders" },
-        () => {
-          if (view === "dashboard") loadDashboard()
-          else if (selectedTable) loadDetail(selectedTable)
+        (payload) => {
+          if (view === "detail" && selectedTable && payload.old.table_number === selectedTable) {
+            debouncedReload()
+          } else if (view === "dashboard") {
+            debouncedReload()
+          }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") void reloadCurrentView()
+      })
 
     return () => {
       client.removeChannel(channel)
+      if (reloadDebounceRef.current) clearTimeout(reloadDebounceRef.current)
     }
-  }, [authed, view, selectedTable, loadDashboard, loadDetail])
+  }, [authed, reloadCurrentView, view, selectedTable])
+
+  useEffect(() => {
+    if (!authed) return
+
+    const resyncTimeoutRef = { current: null as ReturnType<typeof setTimeout> | null }
+
+    const resync = () => {
+      if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
+      resyncTimeoutRef.current = setTimeout(() => void reloadCurrentView(), 5000)
+    }
+    const resyncWhenVisible = () => {
+      if (document.visibilityState === "visible") resync()
+    }
+
+    window.addEventListener("online", resync)
+    document.addEventListener("visibilitychange", resyncWhenVisible)
+    return () => {
+      window.removeEventListener("online", resync)
+      document.removeEventListener("visibilitychange", resyncWhenVisible)
+      if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
+    }
+  }, [authed, reloadCurrentView])
 
   async function handleClear() {
     if (!selectedTable) return
@@ -171,7 +215,7 @@ export default function Checkout() {
 
         <form onSubmit={(e) => { e.preventDefault(); unlock() }} className="mt-8 w-full max-w-xs">
           <input
-            type="text"
+            type="password"
             autoFocus
             value={pin}
             onChange={(e) => { setPin(e.target.value); setPinError(false) }}

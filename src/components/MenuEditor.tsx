@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ChangeEvent, ReactNode } from "react"
-import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X } from "lucide-react"
+import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X, Key, AlertCircle, CheckCircle } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
-import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem } from "../lib/supabase"
-import { uploadMenuItemImage } from "../lib/upload"
+import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem, updateKitchenPin } from "../lib/supabase"
+import { uploadMenuItemImage, deleteStorageObject } from "../lib/upload"
 import type {
   Category,
   Lang,
@@ -237,6 +237,7 @@ function windowsToHours(windows: NotServedWindow[]): number[] {
   return [...hours]
 }
 
+/* ── ItemForm interface with helper for storage path extraction ── */
 interface ItemForm {
   category: string
   titleEn: string
@@ -245,9 +246,21 @@ interface ItemForm {
   descAr: string
   price: string
   image: string
+  oldImagePath?: string
   hours: number[]
   isAvailable: boolean
   modifiers: ModifierGroup[]
+}
+
+/**
+ * Extracts relative storage path from a full Supabase public URL.
+ * e.g., "https://.../menu-images/dishes/abc.webp" → "dishes/abc.webp"
+ */
+function extractStoragePath(url: string): string {
+  const marker = '/menu-images/'
+  const idx = url.indexOf(marker)
+  if (idx === -1) return url // assume it's already a relative path
+  return url.slice(idx + marker.length)
 }
 
 /* ── Section Header ── */
@@ -526,6 +539,10 @@ function ItemEditModal({
         : await updateMenuItem(pin, item.id, fields)
     setSaving(false)
     if (res.ok) {
+      // If image was uploaded and we have an old path to clean up, delete it now
+      if (form.oldImagePath && form.image && form.oldImagePath !== form.image) {
+        void deleteStorageObject(form.oldImagePath)
+      }
       setSaved(true)
       setTimeout(() => {
         setSaved(false)
@@ -543,7 +560,7 @@ function ItemEditModal({
     const res = await uploadMenuItemImage(file, item.id, form.image)
     setUploading(false)
     if (res.ok && res.url) {
-      patch({ image: res.url })
+      patch({ image: res.url, oldImagePath: res.oldPath })
     } else {
       setUploadError(res.error ?? "Upload failed")
     }
@@ -561,6 +578,10 @@ function ItemEditModal({
     const res = await deleteMenuItem(pin, item.id)
     setDeleting(false)
     if (res.ok) {
+      // Delete storage asset AFTER successful DB deletion
+      if (item.image) {
+        await deleteStorageObject(extractStoragePath(item.image))
+      }
       setSaveError(null)
       onDeleted()
       onClose()
@@ -688,6 +709,8 @@ function ItemEditModal({
                     <img
                       src={form.image}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="h-20 w-20 shrink-0 rounded-xl border border-gold/25 object-cover"
                     />
                   ) : (
@@ -945,6 +968,8 @@ function ItemCard({
             <img
               src={item.image}
               alt=""
+              loading="lazy"
+              decoding="async"
               className="h-16 w-16 shrink-0 rounded-2xl border border-gold/25 object-cover"
             />
           )}
@@ -1018,9 +1043,16 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
   const [addingCategory, setAddingCategory] = useState(false)
   const [confirmingDeleteCat, setConfirmingDeleteCat] = useState<string | null>(null)
   const [catError, setCatError] = useState<string | null>(null)
+  const [changingPassphrase, setChangingPassphrase] = useState(false)
+  const [passphraseError, setPassphraseError] = useState<string | null>(null)
+  const [passphraseSuccess, setPassphraseSuccess] = useState(false)
+  const [currentPin, setCurrentPin] = useState("")
+  const [newPin, setNewPin] = useState("")
+  const [confirmPin, setConfirmPin] = useState("")
+  const [updatingPin, setUpdatingPin] = useState(false)
 
   const load = useCallback(() => {
-    fetchMenu()
+    fetchMenu(true)
       .then((d) => {
         setData(d)
         setError(null)
@@ -1040,8 +1072,17 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
   async function handleDeleteCategory(id: string) {
     setCatError(null)
     const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
+    // Collect image URLs for items in this category before deletion
+    const itemsInCategory = data?.menu.filter((m) => m.category === id) ?? []
+    const imagePaths = itemsInCategory
+      .filter((item) => item.image)
+      .map((item) => extractStoragePath(item.image!))
     const res = await deleteCategory(pin, id)
     if (res.ok) {
+      // Delete storage assets AFTER successful category deletion
+      for (const path of imagePaths) {
+        await deleteStorageObject(path)
+      }
       setConfirmingDeleteCat(null)
       load()
     } else {
@@ -1076,7 +1117,7 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
     <main className="mx-auto max-w-5xl px-4 py-6">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl font-bold uppercase tracking-[0.2em] text-gold">{t("menuEditor")}</h2>
-        <div className="flex items-center gap-2">
+<div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setAddingCategory(true)}
@@ -1102,6 +1143,14 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
           >
             <Plus className="h-4 w-4" />
             {t("addItem")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setChangingPassphrase(true)}
+            className="flex items-center gap-1.5 rounded-full border border-gold/40 px-4 py-2 text-sm font-bold text-gold transition-colors active:bg-gold/10"
+          >
+            <Key className="h-4 w-4" />
+            {t("changePassphrase")}
           </button>
           <button
             type="button"
@@ -1179,6 +1228,128 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
           </section>
         ))}
       </div>
+
+      {/* Change Passphrase Modal */}
+      {changingPassphrase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center animate-backdrop">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setChangingPassphrase(false); setPassphraseError(null); setPassphraseSuccess(false); setCurrentPin(""); setNewPin(""); setConfirmPin(""); }} />
+          <div className="relative mx-4 w-full max-w-md rounded-3xl border border-border bg-bg p-6 shadow-2xl shadow-black/50 animate-modal">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
+              <Key className="h-5 w-5 text-gold" />
+              {t("changePassphrase")}
+            </h2>
+
+            {passphraseSuccess && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+                <CheckCircle className="h-5 w-5 text-emerald-400" />
+                <p className="text-sm font-semibold text-emerald-300">{t("passphraseUpdated")}</p>
+              </div>
+            )}
+
+            {passphraseError && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+                <p className="text-sm font-semibold text-red-400">{passphraseError}</p>
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-col gap-4">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-bold uppercase tracking-wide text-muted">
+                  {t("currentPassphrase")}
+                </span>
+                <input
+                  type="password"
+                  autoFocus
+                  value={currentPin}
+                  onChange={(e) => { setCurrentPin(e.target.value); setPassphraseError(null); setPassphraseSuccess(false); }}
+                  placeholder={t("currentPassphrase")}
+                  className="w-full rounded-xl border border-border bg-surface-2 px-4 py-3 text-base text-foreground outline-none placeholder:text-muted/60 focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-bold uppercase tracking-wide text-muted">
+                  {t("newPassphrase")}
+                </span>
+                <input
+                  type="password"
+                  value={newPin}
+                  onChange={(e) => { setNewPin(e.target.value); setPassphraseError(null); setPassphraseSuccess(false); }}
+                  placeholder={t("newPassphrase")}
+                  className="w-full rounded-xl border border-border bg-surface-2 px-4 py-3 text-base text-foreground outline-none placeholder:text-muted/60 focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-bold uppercase tracking-wide text-muted">
+                  {t("confirmPassphrase")}
+                </span>
+                <input
+                  type="password"
+                  value={confirmPin}
+                  onChange={(e) => { setConfirmPin(e.target.value); setPassphraseError(null); setPassphraseSuccess(false); }}
+                  placeholder={t("confirmPassphrase")}
+                  className="w-full rounded-xl border border-border bg-surface-2 px-4 py-3 text-base text-foreground outline-none placeholder:text-muted/60 focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                />
+              </label>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => { setChangingPassphrase(false); setPassphraseError(null); setPassphraseSuccess(false); setCurrentPin(""); setNewPin(""); setConfirmPin(""); }}
+                className="rounded-full border border-border bg-surface px-6 py-3.5 text-sm font-bold text-muted transition-colors active:bg-surface-2"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setPassphraseError(null)
+                  setPassphraseSuccess(false)
+                  if (!currentPin || !newPin || !confirmPin) {
+                    setPassphraseError(t("passphraseMinLength"))
+                    return
+                  }
+                  if (newPin.length < 8) {
+                    setPassphraseError(t("passphraseMinLength"))
+                    return
+                  }
+                  if (newPin !== confirmPin) {
+                    setPassphraseError(t("passphrasesNoMatch"))
+                    return
+                  }
+                  setUpdatingPin(true)
+                  const ok = await updateKitchenPin(currentPin, newPin)
+                  setUpdatingPin(false)
+                  if (ok) {
+                    sessionStorage.setItem("kitchenPin", newPin)
+                    setPassphraseSuccess(true)
+                    setCurrentPin("")
+                    setNewPin("")
+                    setConfirmPin("")
+                    setTimeout(() => {
+                      setChangingPassphrase(false)
+                      setPassphraseSuccess(false)
+                    }, 1500)
+                  } else {
+                    setPassphraseError(t("incorrectCurrentPassphrase"))
+                  }
+                }}
+                disabled={updatingPin}
+                className={
+                  "flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-bold transition-all " +
+                  (updatingPin
+                    ? "bg-gold/30 text-gold"
+                    : "bg-gold text-bg active:bg-gold/90 disabled:opacity-50")
+                }
+              >
+                {updatingPin ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {t("save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {creating && (
         <ItemEditModal

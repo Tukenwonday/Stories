@@ -99,4 +99,13 @@ export const kitchenStrings = {
     ar: "يتم ضغط الصور تلقائيًا (~800 بكسل). استبدال الصورة يحذف القديمة تلقائيًا.",
   },
   noImage: { en: "No image", ar: "لا توجد صورة" },
+  changePassphrase: { en: "Change Kitchen Passphrase", ar: "تغيير عبارة مرور المطبخ" },
+  currentPassphrase: { en: "Current Passphrase", ar: "عبارة المرور الحالية" },
+  newPassphrase: { en: "New Passphrase", ar: "عبارة المرور الجديدة" },
+  confirmPassphrase: { en: "Confirm New Passphrase", ar: "تأكيد عبارة المرور الجديدة" },
+  passphraseMinLength: { en: "Passphrase must be at least 8 characters", ar: "يجب أن تكون عبارة المرور 8 أحرف على الأقل" },
+  passphrasesNoMatch: { en: "New passphrases do not match", ar: "عبارتا المرور الجديدتان غير متطابقتين" },
+  passphraseUpdated: { en: "Kitchen passphrase updated successfully", ar: "تم تحديث عبارة مرور المطبخ بنجاح" },
+  passphraseUpdateFailed: { en: "Failed to update passphrase. Check current passphrase.", ar: "فشل تحديث عبارة المرور. تحقق من عبارة المرور الحالية." },
+  incorrectCurrentPassphrase: { en: "Incorrect current passphrase", ar: "عبارة المرور الحالية غير صحيحة" },
 } as const

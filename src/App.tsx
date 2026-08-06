@@ -3,7 +3,8 @@ import { Search, X } from "lucide-react"
 import type { Category, Lang, MenuItem } from "./types"
 import { LangContext } from "./lang-context"
 import { strings } from "./i18n"
-import { fetchMenu, supabase } from "./lib/supabase"
+import { fetchMenu, supabase, queryKeys } from "./lib/supabase"
+import { useQuery } from "@tanstack/react-query"
 import Header from "./components/Header"
 import CategoryNav from "./components/CategoryNav"
 import MenuItemCard from "./components/MenuItemCard"
@@ -61,22 +62,32 @@ export default function App() {
       .catch(() => setTableInvalid(true))
   }, [])
 
+  // Use React Query for menu fetching with deduplication & caching
+  const { data: menuData, isLoading, error: menuError } = useQuery({
+    queryKey: queryKeys.menu,
+    queryFn: () => fetchMenu(),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  })
+
   useEffect(() => {
-    fetchMenu()
-      .then((data) => {
-        setCategories(data.categories)
-        setMenu(data.menu)
-        if (data.categories.length > 0) {
-          setActiveCat(data.categories[0].id)
-        }
-        setLoading(false)
-      })
-      .catch((err: unknown) => {
-        console.error(err)
-        setError((err instanceof Error ? err.message : String(err)) || strings.loadError.ar)
-        setLoading(false)
-      })
-  }, [])
+    if (menuData) {
+      setCategories(menuData.categories)
+      setMenu(menuData.menu)
+      if (menuData.categories.length > 0) {
+        setActiveCat(menuData.categories[0].id)
+      }
+      setLoading(false)
+    }
+  }, [menuData])
+
+  useEffect(() => {
+    if (menuError) {
+      console.error(menuError)
+      setError((menuError instanceof Error ? menuError.message : String(menuError)) || strings.loadError.ar)
+      setLoading(false)
+    }
+  }, [menuError])
   const [cartOpen, setCartOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
 
