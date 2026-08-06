@@ -3,7 +3,6 @@ import type { CartLine, Category, MenuItem, ModifierGroup, NotServedWindow } fro
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const cdnUrl = import.meta.env.VITE_CDN_URL
 
 /**
  * Supabase is optional until you fill in the .env values.
@@ -15,6 +14,11 @@ export const isSupabaseConfigured = Boolean(url && anonKey)
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url, anonKey)
   : null
+
+// The Pages deployment acts as our CDN/proxy for Supabase storage.
+const PAGES_ORIGIN = "https://stories-7rn.pages.dev"
+// Legacy raw Supabase storage origin to rewrite.
+const SUPABASE_STORAGE_ORIGIN = "https://doinkehdvtgqzcikwwos.supabase.co"
 
 interface CategoryRow {
   id: string
@@ -51,29 +55,36 @@ export const queryKeys = {
 }
 
 /**
- * Builds a public image URL for menu-images bucket.
- * If VITE_CDN_URL is set, uses the CDN domain for edge caching.
- * Otherwise falls back to the Pages deployment URL (stories-7rn.pages.dev)
- * which proxies Supabase storage, avoiding raw Supabase domain exposure.
+ * Builds a public image URL for menu-images bucket using the Pages origin.
  * Strips query params for clean, cacheable URLs.
  */
 export function buildPublicImageUrl(storagePath: string): string {
   const cleanPath = storagePath.replace(/^\/+/, "").split("?")[0].split("#")[0]
-  if (cdnUrl) {
-    return `${cdnUrl.replace(/\/+$/, "")}/${cleanPath}`
-  }
-  return `https://stories-7rn.pages.dev/storage/v1/object/public/menu-images/${cleanPath}`
+  return `${PAGES_ORIGIN}/storage/v1/object/public/menu-images/${cleanPath}`
 }
 
 /**
- * Menu image rows may store a full public URL (legacy) or a bare storage path
- * (new staged uploads, e.g. "dishes/abc.webp"). Normalize bare paths to a full
- * public URL so <img src> works everywhere.
+ * Normalizes an image value from the database to a full public URL.
+ * - Bare storage paths (e.g. "dishes/abc.webp") → full Pages URL
+ * - Legacy Supabase URLs → rewritten to Pages origin
+ * - Already-Pages URLs → passed through
+ * - Other absolute URLs → passed through
  */
 function publicImageUrl(value: string | null | undefined): string | undefined {
   if (!value) return undefined
-  if (/^https?:\/\//.test(value)) return value
-  return buildPublicImageUrl(value)
+  // Already using Pages origin - pass through
+  if (value.startsWith(PAGES_ORIGIN)) return value
+  // Rewrite legacy Supabase storage URLs to Pages origin
+  if (value.startsWith(SUPABASE_STORAGE_ORIGIN)) {
+    const path = value.slice(SUPABASE_STORAGE_ORIGIN.length)
+    return `${PAGES_ORIGIN}${path}`
+  }
+  // Bare storage path (new uploads)
+  if (!/^https?:\/\//.test(value)) {
+    return buildPublicImageUrl(value)
+  }
+  // Other absolute URLs - pass through
+  return value
 }
 
 /**
