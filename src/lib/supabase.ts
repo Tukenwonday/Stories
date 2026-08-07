@@ -68,9 +68,7 @@ export function buildPublicImageUrl(storagePath: string): string {
   // Bare storage path (new staged uploads) — prefix with Pages origin.
   if (!/^https?:\/\//i.test(clean)) {
     const path = clean.replace(/^\/+/, "")
-    const renderedUrl = `${PAGES_ORIGIN}/storage/v1/object/public/menu-images/${path}`
-    console.log("[CDN DEBUG]", renderedUrl)
-    return renderedUrl
+    return `${PAGES_ORIGIN}/storage/v1/object/public/menu-images/${path}`
   }
 
   // Any Supabase storage URL (any subdomain) — extract the object path and
@@ -79,9 +77,7 @@ export function buildPublicImageUrl(storagePath: string): string {
   const idx = clean.indexOf(marker)
   if (idx !== -1) {
     const path = clean.slice(idx + marker.length).replace(/^\/+/, "")
-    const renderedUrl = `${PAGES_ORIGIN}${marker}${path}`
-    console.log("[CDN DEBUG]", renderedUrl)
-    return renderedUrl
+    return `${PAGES_ORIGIN}${marker}${path}`
   }
 
   // Other absolute URL — pass through as-is.
@@ -395,7 +391,6 @@ export async function submitOrder(
   token: string,
 ): Promise<{ ok: boolean; demo: boolean; error?: string }> {
   if (!supabase) {
-    console.log("[v0] Demo order (Supabase not configured):", payload)
     // Simulate network latency for a realistic UX in demo mode.
     await new Promise((r) => setTimeout(r, 700))
     return { ok: true, demo: true }
@@ -410,7 +405,6 @@ export async function submitOrder(
     p_local_time: payload.local_time,
   })
   if (error) {
-    console.log("[v0] Supabase insert error:", error.message)
     return { ok: false, demo: false, error: error.message }
   }
   return { ok: true, demo: false }
