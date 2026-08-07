@@ -3,7 +3,8 @@ import type { ChangeEvent, ReactNode } from "react"
 import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X, Key, AlertCircle, CheckCircle } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
-import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem, updateKitchenPin, supabase, buildPublicImageUrl } from "../lib/supabase"
+import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem, updateKitchenPin, supabase, buildPublicImageUrl, queryKeys } from "../lib/supabase"
+import { useQueryClient } from "@tanstack/react-query"
 import { deleteStorageObject } from "../lib/upload"
 import { compressImage } from "../lib/images"
 import type {
@@ -736,7 +737,7 @@ function ItemEditModal({
                 <div className="flex flex-wrap items-center gap-3">
                   {form.image ? (
                     <img
-                      src={buildPublicImageUrl(form.image)}
+                      src={stagedImage ? stagedImage.url : buildPublicImageUrl(form.image)}
                       alt=""
                       loading="lazy"
                       decoding="async"
@@ -1064,6 +1065,7 @@ function ItemCard({
 export default function MenuEditor({ onBack }: { onBack: () => void }) {
   const { lang } = useLang()
   const t = (k: keyof typeof kitchenStrings) => kitchenStrings[k][lang]
+  const queryClient = useQueryClient()
 
   const [data, setData] = useState<{ categories: Category[]; menu: MenuItem[] } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -1086,13 +1088,14 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
         setData(d)
         setError(null)
         setLoading(false)
+        queryClient.invalidateQueries({ queryKey: queryKeys.menu })
       })
       .catch((e: unknown) => {
         console.error(e)
         setError(e instanceof Error ? e.message : String(e))
         setLoading(false)
       })
-  }, [])
+  }, [queryClient])
 
   useEffect(() => {
     load()
