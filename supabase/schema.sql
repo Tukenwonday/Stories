@@ -159,6 +159,8 @@ on conflict (id) do update set public = true;
 -- The storefront/kitchen uploads photos with the anon key, so objects in this
 -- bucket are readable by everyone and writable by anyone holding the anon key
 -- (the kitchen PIN gates uploads in the app UI).
+-- UPDATE and DELETE are blocked for anon — overwrites are never safe, and
+-- deletes go through the delete_menu_image() SECURITY DEFINER function below.
 drop policy if exists "menu-images select" on storage.objects;
 create policy "menu-images select" on storage.objects
   for select using (bucket_id = 'menu-images');
@@ -168,12 +170,8 @@ create policy "menu-images insert" on storage.objects
   for insert to anon with check (bucket_id = 'menu-images');
 
 drop policy if exists "menu-images update" on storage.objects;
-create policy "menu-images update" on storage.objects
-  for update to anon using (bucket_id = 'menu-images');
 
 drop policy if exists "menu-images delete" on storage.objects;
-create policy "menu-images delete" on storage.objects
-  for delete to anon using (bucket_id = 'menu-images');
 
 -- =============================================================================
 -- 5. RPC FUNCTIONS
@@ -236,7 +234,11 @@ language plpgsql
 security definer
 as $$
 begin
-  return p_pin = (select value from public.app_config where key = 'kitchen_pin');
+  if p_pin = (select value from public.app_config where key = 'kitchen_pin') then
+    return true;
+  end if;
+  perform pg_sleep(1);
+  return false;
 end;
 $$;
 
@@ -592,6 +594,25 @@ begin
   end if;
 
   update public.orders set paid = true where id = p_order_id::uuid;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- delete_menu_image(p_pin, p_path) -> void
+-- Deletes a file from the menu-images storage bucket. The kitchen PIN must be
+-- correct — this prevents anonymous callers from wiping images via the API.
+-- ---------------------------------------------------------------------------
+create or replace function delete_menu_image(p_pin text, p_path text)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
+    raise exception 'Invalid PIN';
+  end if;
+
+  perform storage.remove(array[p_path]);
 end;
 $$;
 

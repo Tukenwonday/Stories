@@ -56,22 +56,31 @@ function CategoryAddModal({
     }
     const id = slugify(nameEn) || "cat-" + uid()
     setSaving(true)
-    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
-    const res = await insertCategory(pin, {
-      id,
-      label_en: nameEn.trim(),
-      label_ar: nameAr.trim(),
-    })
-    setSaving(false)
-    if (res.ok) {
-      setSaved(true)
-      setTimeout(() => {
-        setSaved(false)
-        onCreated()
-        onClose()
-      }, 600)
-    } else {
-      setError(res.error ?? "Failed")
+    try {
+      const pin = sessionStorage.getItem("kitchenPin")
+      if (!pin) {
+        setError("Session expired. Please log in again.")
+        return
+      }
+      const res = await insertCategory(pin, {
+        id,
+        label_en: nameEn.trim(),
+        label_ar: nameAr.trim(),
+      })
+      if (res.ok) {
+        setSaved(true)
+        setTimeout(() => {
+          setSaved(false)
+          onCreated()
+          onClose()
+        }, 600)
+      } else {
+        setError(res.error ?? "Failed")
+      }
+    } catch {
+      setError("Network error")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -523,74 +532,91 @@ function ItemEditModal({
       return
     }
     setSaving(true)
-    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
-
-    let imageToSave = form.image.trim() || null
-    let oldImagePath: string | undefined
-
-    // Upload staged image if present
-    if (stagedImage) {
-      const { error } = await supabase!.storage.from("menu-images").upload(stagedImage.path, stagedImage.blob, {
-        contentType: stagedImage.blob.type,
-        upsert: true,
-        cacheControl: "31536000",
-      })
-      if (error) {
-        setSaving(false)
-        setSaveError(error.message)
+    try {
+      const pin = sessionStorage.getItem("kitchenPin")
+      if (!pin) {
+        setSaveError("Session expired. Please log in again.")
         return
       }
-      imageToSave = stagedImage.path
-      oldImagePath = item.image ? extractStoragePath(item.image) : undefined
-    }
 
-    const fields = {
-      title_en: form.titleEn,
-      title_ar: form.titleAr,
-      description_en: form.descEn,
-      description_ar: form.descAr,
-      price,
-      image: imageToSave,
-      not_served_windows: windows,
-      is_available: form.isAvailable,
-      modifiers: form.modifiers,
-    }
-    const res =
-      mode === "create"
-        ? await insertMenuItem(pin, { id: item.id, category: form.category, ...fields })
-        : await updateMenuItem(pin, item.id, fields)
-    setSaving(false)
-    if (res.ok) {
-      // Clean up old storage object if image changed
-      if (oldImagePath && oldImagePath !== imageToSave) {
-        await deleteStorageObject(oldImagePath)
-      }
-      // Revoke preview URL
+      let imageToSave = form.image.trim() || null
+      let oldImagePath: string | undefined
+
+      // Upload staged image if present
       if (stagedImage) {
-        URL.revokeObjectURL(stagedImage.url)
-        setStagedImage(null)
+        if (!supabase) {
+          setSaveError("Supabase not configured")
+          return
+        }
+        const { error } = await supabase.storage.from("menu-images").upload(stagedImage.path, stagedImage.blob, {
+          contentType: stagedImage.blob.type,
+          upsert: true,
+          cacheControl: "31536000",
+        })
+        if (error) {
+          setSaveError(error.message)
+          return
+        }
+        imageToSave = stagedImage.path
+        oldImagePath = item.image ? extractStoragePath(item.image) : undefined
       }
-      setSaved(true)
-      setTimeout(() => {
-        setSaved(false)
-        if (mode === "create") onCreated?.()
-        onClose()
-      }, 800)
-    } else {
-      setSaveError(res.error ?? "Failed")
+
+      const fields = {
+        title_en: form.titleEn,
+        title_ar: form.titleAr,
+        description_en: form.descEn,
+        description_ar: form.descAr,
+        price,
+        image: imageToSave,
+        not_served_windows: windows,
+        is_available: form.isAvailable,
+        modifiers: form.modifiers,
+      }
+      const res =
+        mode === "create"
+          ? await insertMenuItem(pin, { id: item.id, category: form.category, ...fields })
+          : await updateMenuItem(pin, item.id, fields)
+      if (res.ok) {
+        // Clean up old storage object if image changed
+        if (oldImagePath && oldImagePath !== imageToSave) {
+          await deleteStorageObject(oldImagePath)
+        }
+        // Revoke preview URL
+        if (stagedImage) {
+          URL.revokeObjectURL(stagedImage.url)
+          setStagedImage(null)
+        }
+        setSaved(true)
+        setTimeout(() => {
+          setSaved(false)
+          if (mode === "create") onCreated?.()
+          onClose()
+        }, 800)
+      } else {
+        setSaveError(res.error ?? "Failed")
+      }
+    } catch {
+      setSaveError("Network error")
+    } finally {
+      setSaving(false)
     }
   }
 
   async function handleUploadImage(file: File) {
     setUploadError(null)
     setUploading(true)
-    const { blob, ext } = await compressImage(file)
-    const safeItem = item.id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "misc"
-    const path = `dishes/${safeItem}-${Date.now()}.${ext}`
-    const previewUrl = URL.createObjectURL(blob)
-    setStagedImage({ url: previewUrl, path, blob })
-    patch({ image: previewUrl })
-    setUploading(false)
+    try {
+      const { blob, ext } = await compressImage(file)
+      const safeItem = item.id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "misc"
+      const path = `dishes/${safeItem}-${Date.now()}.${ext}`
+      const previewUrl = URL.createObjectURL(blob)
+      setStagedImage({ url: previewUrl, path, blob })
+      patch({ image: previewUrl })
+    } catch {
+      setUploadError("Failed to process image")
+    } finally {
+      setUploading(false)
+    }
   }
 
   function onFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -601,20 +627,29 @@ function ItemEditModal({
 
   async function handleDelete() {
     setDeleting(true)
-    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
-    const res = await deleteMenuItem(pin, item.id)
-    setDeleting(false)
-    if (res.ok) {
-      // Delete storage asset AFTER successful DB deletion
-      if (item.image) {
-        await deleteStorageObject(extractStoragePath(item.image))
+    try {
+      const pin = sessionStorage.getItem("kitchenPin")
+      if (!pin) {
+        setSaveError("Session expired. Please log in again.")
+        return
       }
-      setSaveError(null)
-      onDeleted()
-      onClose()
-    } else {
-      setSaveError(res.error ?? "Failed")
-      setConfirmingDelete(false)
+      const res = await deleteMenuItem(pin, item.id)
+      if (res.ok) {
+        // Delete storage asset AFTER successful DB deletion
+        if (item.image) {
+          await deleteStorageObject(extractStoragePath(item.image))
+        }
+        setSaveError(null)
+        onDeleted()
+        onClose()
+      } else {
+        setSaveError(res.error ?? "Failed")
+        setConfirmingDelete(false)
+      }
+    } catch {
+      setSaveError("Network error")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -1103,22 +1138,31 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
 
   async function handleDeleteCategory(id: string) {
     setCatError(null)
-    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
-    // Collect image URLs for items in this category before deletion
-    const itemsInCategory = data?.menu.filter((m) => m.category === id) ?? []
-    const imagePaths = itemsInCategory
-      .filter((item) => item.image)
-      .map((item) => extractStoragePath(item.image!))
-    const res = await deleteCategory(pin, id)
-    if (res.ok) {
-      // Delete storage assets AFTER successful category deletion
-      for (const path of imagePaths) {
-        await deleteStorageObject(path)
+    try {
+      const pin = sessionStorage.getItem("kitchenPin")
+      if (!pin) {
+        setCatError("Session expired. Please log in again.")
+        return
       }
-      setConfirmingDeleteCat(null)
-      load()
-    } else {
-      setCatError(res.error ?? "Failed")
+      // Collect image URLs for items in this category before deletion
+      const itemsInCategory = data?.menu.filter((m) => m.category === id) ?? []
+      const imagePaths = itemsInCategory
+        .filter((item) => item.image)
+        .map((item) => extractStoragePath(item.image!))
+      const res = await deleteCategory(pin, id)
+      if (res.ok) {
+        // Delete storage assets AFTER successful category deletion
+        for (const path of imagePaths) {
+          await deleteStorageObject(path)
+        }
+        setConfirmingDeleteCat(null)
+        load()
+      } else {
+        setCatError(res.error ?? "Failed")
+        setConfirmingDeleteCat(null)
+      }
+    } catch {
+      setCatError("Network error")
       setConfirmingDeleteCat(null)
     }
   }
@@ -1351,20 +1395,25 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
                     return
                   }
                   setUpdatingPin(true)
-                  const ok = await updateKitchenPin(currentPin.trim(), newPin.trim())
-                  setUpdatingPin(false)
-                  if (ok) {
-                    sessionStorage.setItem("kitchenPin", newPin)
-                    setPassphraseSuccess(true)
-                    setCurrentPin("")
-                    setNewPin("")
-                    setConfirmPin("")
-                    setTimeout(() => {
-                      setChangingPassphrase(false)
-                      setPassphraseSuccess(false)
-                    }, 1500)
-                  } else {
-                    setPassphraseError(t("incorrectCurrentPassphrase"))
+                  try {
+                    const ok = await updateKitchenPin(currentPin.trim(), newPin.trim())
+                    if (ok) {
+                      sessionStorage.setItem("kitchenPin", newPin)
+                      setPassphraseSuccess(true)
+                      setCurrentPin("")
+                      setNewPin("")
+                      setConfirmPin("")
+                      setTimeout(() => {
+                        setChangingPassphrase(false)
+                        setPassphraseSuccess(false)
+                      }, 1500)
+                    } else {
+                      setPassphraseError(t("incorrectCurrentPassphrase"))
+                    }
+                  } catch {
+                    setPassphraseError("Network error")
+                  } finally {
+                    setUpdatingPin(false)
                   }
                 }}
                 disabled={updatingPin}

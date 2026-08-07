@@ -82,6 +82,7 @@ export default function Kitchen() {
   const [error, setError] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
   const [view, setView] = useState<"orders" | "admin">("orders")
+  const [channelError, setChannelError] = useState(false)
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -97,16 +98,21 @@ export default function Kitchen() {
 
   async function unlock() {
     setUnlocking(true)
-    const ok = await verifyKitchenPin(pin.trim())
-    setUnlocking(false)
-    if (ok) {
-      ensureAudio()
-      sessionStorage.setItem("kitchenAuthed", "1")
-      sessionStorage.setItem("kitchenPin", pin.trim())
-      setAuthed(true)
-      setPinError(false)
-    } else {
+    try {
+      const ok = await verifyKitchenPin(pin.trim())
+      if (ok) {
+        ensureAudio()
+        sessionStorage.setItem("kitchenAuthed", "1")
+        sessionStorage.setItem("kitchenPin", pin.trim())
+        setAuthed(true)
+        setPinError(false)
+      } else {
+        setPinError(true)
+      }
+    } catch {
       setPinError(true)
+    } finally {
+      setUnlocking(false)
     }
   }
 
@@ -116,19 +122,23 @@ export default function Kitchen() {
       setError("not configured")
       return
     }
-    const { data, error: err } = await supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50)
-    if (err) {
-      console.error("[kitchen] fetch error:", err.message)
-      setError(err.message)
-    } else {
-      setOrders((data ?? []) as KitchenOrder[])
-      setError(null)
+    try {
+      const { data, error: err } = await supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50)
+      if (err) {
+        setError(err.message)
+      } else {
+        setOrders((data ?? []) as KitchenOrder[])
+        setError(null)
+      }
+    } catch {
+      setError("Network error")
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -165,7 +175,11 @@ export default function Kitchen() {
         },
       )
       .subscribe((status) => {
-        // Initial load already ran in useEffect; no need to reload on SUBSCRIBED
+        if (status === "SUBSCRIBED") {
+          setChannelError(false)
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          setChannelError(true)
+        }
       })
 
     return () => {
@@ -315,6 +329,12 @@ export default function Kitchen() {
             </div>
           </div>
         </header>
+
+        {channelError && (
+          <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-2.5 text-center text-xs font-semibold text-red-400">
+            {t("connectionLost")}
+          </div>
+        )}
 
         {view === "admin" ? (
           <MenuEditor onBack={() => setView("orders")} />

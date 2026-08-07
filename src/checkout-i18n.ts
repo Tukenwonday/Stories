@@ -38,6 +38,7 @@ export const checkoutStrings = {
   },
   markPaid: { en: "Mark paid", ar: "تم الدفع" },
   paid: { en: "Paid", ar: "مدفوع" },
+  connectionLost: { en: "Connection lost — reconnecting...", ar: "فُقد الاتصال — جارٍ إعادة الاتصال..." },
 } as const
 
 export function t(key: keyof typeof checkoutStrings, lang: "en" | "ar"): string {

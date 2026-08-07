@@ -40,6 +40,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [clearing, setClearing] = useState(false)
+  const [channelError, setChannelError] = useState(false)
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -48,15 +49,20 @@ export default function Checkout() {
 
   async function unlock() {
     setUnlocking(true)
-    const valid = await verifyKitchenPin(pin.trim())
-    setUnlocking(false)
-    if (valid) {
-      sessionStorage.setItem("checkoutAuthed", "1")
-      sessionStorage.setItem("kitchenPin", pin.trim())
-      setAuthed(true)
-      setPinError(false)
-    } else {
+    try {
+      const valid = await verifyKitchenPin(pin.trim())
+      if (valid) {
+        sessionStorage.setItem("checkoutAuthed", "1")
+        sessionStorage.setItem("kitchenPin", pin.trim())
+        setAuthed(true)
+        setPinError(false)
+      } else {
+        setPinError(true)
+      }
+    } catch {
       setPinError(true)
+    } finally {
+      setUnlocking(false)
     }
   }
 
@@ -137,7 +143,12 @@ export default function Checkout() {
         }
       )
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") void reloadCurrentView()
+        if (status === "SUBSCRIBED") {
+          setChannelError(false)
+          void reloadCurrentView()
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          setChannelError(true)
+        }
       })
 
     return () => {
@@ -173,31 +184,48 @@ export default function Checkout() {
     if (!selectedTable) return
     setClearing(true)
     setError(null)
-    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
-    const res = await clearTableOrders(pin, selectedTable)
-    setClearing(false)
-    if (res.ok) {
-      setPaidOrderIds(new Set())
-      setTimeout(() => {
-        setView("dashboard")
-        setSelectedTable(null)
-      }, 800)
-    } else {
-      setError(res.error ?? "Failed")
+    try {
+      const pin = sessionStorage.getItem("kitchenPin")
+      if (!pin) {
+        setError("Session expired. Please log in again.")
+        return
+      }
+      const res = await clearTableOrders(pin, selectedTable)
+      if (res.ok) {
+        setPaidOrderIds(new Set())
+        setTimeout(() => {
+          setView("dashboard")
+          setSelectedTable(null)
+        }, 800)
+      } else {
+        setError(res.error ?? "Failed")
+      }
+    } catch {
+      setError("Network error")
+    } finally {
+      setClearing(false)
     }
   }
 
   async function handleMarkPaid(orderId: string) {
-    const pin = sessionStorage.getItem("kitchenPin") ?? "2026"
-    const res = await markOrderPaid(pin, orderId)
-    if (res.ok) {
-      setPaidOrderIds((prev) => {
-        const next = new Set(prev)
-        next.add(orderId)
-        return next
-      })
-    } else {
-      setError(res.error ?? "Failed to mark paid")
+    try {
+      const pin = sessionStorage.getItem("kitchenPin")
+      if (!pin) {
+        setError("Session expired. Please log in again.")
+        return
+      }
+      const res = await markOrderPaid(pin, orderId)
+      if (res.ok) {
+        setPaidOrderIds((prev) => {
+          const next = new Set(prev)
+          next.add(orderId)
+          return next
+        })
+      } else {
+        setError(res.error ?? "Failed to mark paid")
+      }
+    } catch {
+      setError("Network error")
     }
   }
 
@@ -273,6 +301,12 @@ export default function Checkout() {
             </div>
           </div>
         </header>
+
+        {channelError && (
+          <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-2.5 text-center text-xs font-semibold text-red-400">
+            {t("connectionLost", lang)}
+          </div>
+        )}
 
         <main className="mx-auto max-w-3xl px-4 py-6">
           {error && (
@@ -443,6 +477,12 @@ export default function Checkout() {
           </div>
         </div>
       </header>
+
+      {channelError && (
+        <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-2.5 text-center text-xs font-semibold text-red-400">
+          {t("connectionLost", lang)}
+        </div>
+      )}
 
       <main className="mx-auto max-w-5xl px-4 py-6">
         {error && (

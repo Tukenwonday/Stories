@@ -108,4 +108,5 @@ export const kitchenStrings = {
   passphraseUpdated: { en: "Kitchen passphrase updated successfully", ar: "تم تحديث عبارة مرور المطبخ بنجاح" },
   passphraseUpdateFailed: { en: "Failed to update passphrase. Check current passphrase.", ar: "فشل تحديث عبارة المرور. تحقق من عبارة المرور الحالية." },
   incorrectCurrentPassphrase: { en: "Incorrect current passphrase", ar: "عبارة المرور الحالية غير صحيحة" },
+  connectionLost: { en: "Connection lost — reconnecting...", ar: "فُقد الاتصال — جارٍ إعادة الاتصال..." },
 } as const
