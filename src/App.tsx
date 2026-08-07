@@ -34,7 +34,7 @@ export default function App() {
   // Use React Query for menu fetching with deduplication & caching
   const { data: menuData, error: menuError } = useQuery({
     queryKey: queryKeys.menu,
-    queryFn: () => fetchMenu(),
+    queryFn: () => fetchMenu(true),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   })
