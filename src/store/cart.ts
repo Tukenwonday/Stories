@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
 import type { CartLine, MenuItem, SelectedModifier } from "../types"
 
 /** Deterministic line id from item + selected option ids so identical
@@ -26,52 +27,59 @@ interface CartState {
   total: () => number
 }
 
-export const useCart = create<CartState>((set, get) => ({
-  lines: [],
+export const useCart = create<CartState>()(
+  persist(
+    (set, get) => ({
+      lines: [],
 
-  addItem: (item, modifiers, quantity = 1) => {
-    const lineId = makeLineId(item.id, modifiers)
-    const price = unitPrice(item.price, modifiers)
+      addItem: (item, modifiers, quantity = 1) => {
+        const lineId = makeLineId(item.id, modifiers)
+        const price = unitPrice(item.price, modifiers)
 
-    set((state) => {
-      const existing = state.lines.find((l) => l.lineId === lineId)
-      if (existing) {
-        return {
-          lines: state.lines.map((l) =>
-            l.lineId === lineId ? { ...l, quantity: l.quantity + quantity } : l,
-          ),
-        }
-      }
-      const line: CartLine = {
-        lineId,
-        itemId: item.id,
-        title: item.title,
-        basePrice: item.price,
-        quantity,
-        modifiers,
-        unitPrice: price,
-      }
-      return { lines: [...state.lines, line] }
-    })
-  },
+        set((state) => {
+          const existing = state.lines.find((l) => l.lineId === lineId)
+          if (existing) {
+            return {
+              lines: state.lines.map((l) =>
+                l.lineId === lineId ? { ...l, quantity: l.quantity + quantity } : l,
+              ),
+            }
+          }
+          const line: CartLine = {
+            lineId,
+            itemId: item.id,
+            title: item.title,
+            basePrice: item.price,
+            quantity,
+            modifiers,
+            unitPrice: price,
+          }
+          return { lines: [...state.lines, line] }
+        })
+      },
 
-  increment: (lineId) =>
-    set((state) => ({
-      lines: state.lines.map((l) => (l.lineId === lineId ? { ...l, quantity: l.quantity + 1 } : l)),
-    })),
+      increment: (lineId) =>
+        set((state) => ({
+          lines: state.lines.map((l) => (l.lineId === lineId ? { ...l, quantity: l.quantity + 1 } : l)),
+        })),
 
-  decrement: (lineId) =>
-    set((state) => ({
-      lines: state.lines
-        .map((l) => (l.lineId === lineId ? { ...l, quantity: l.quantity - 1 } : l))
-        .filter((l) => l.quantity > 0),
-    })),
+      decrement: (lineId) =>
+        set((state) => ({
+          lines: state.lines
+            .map((l) => (l.lineId === lineId ? { ...l, quantity: l.quantity - 1 } : l))
+            .filter((l) => l.quantity > 0),
+        })),
 
-  removeLine: (lineId) => set((state) => ({ lines: state.lines.filter((l) => l.lineId !== lineId) })),
+      removeLine: (lineId) => set((state) => ({ lines: state.lines.filter((l) => l.lineId !== lineId) })),
 
-  clear: () => set({ lines: [] }),
+      clear: () => set({ lines: [] }),
 
-  count: () => get().lines.reduce((sum, l) => sum + l.quantity, 0),
+      count: () => get().lines.reduce((sum, l) => sum + l.quantity, 0),
 
-  total: () => get().lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
-}))
+      total: () => get().lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
+    }),
+    {
+      name: "stories-cart",
+    },
+  ),
+)

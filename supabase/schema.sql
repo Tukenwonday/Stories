@@ -99,6 +99,7 @@ create index if not exists idx_orders_table   on public.orders(table_number);
 create index if not exists idx_orders_created on public.orders(created_at);
 create index if not exists idx_orders_status_created on public.orders(status, created_at);
 create index if not exists idx_orders_paid on public.orders(paid) where paid = false;
+create index if not exists idx_orders_table_created on public.orders(table_number, created_at desc);
 
 -- =============================================================================
 -- 3. ROW LEVEL SECURITY
@@ -192,6 +193,21 @@ begin
     and created_at < now() - interval '90 days';
 end;
 $$;
+
+-- Schedule cleanup_old_orders() to run daily at 03:00 UTC via pg_cron.
+-- Idempotent: any existing job with this name is unscheduled before recreating.
+create extension if not exists pg_cron;
+do $$
+declare
+  v_jobid bigint;
+begin
+  select jobid into v_jobid from cron.job where jobname = 'cleanup-old-orders';
+  if v_jobid is not null then
+    perform cron.unschedule(v_jobid);
+  end if;
+end;
+$$;
+select cron.schedule('cleanup-old-orders', '0 3 * * *', $$select public.cleanup_old_orders()$$);
 
 -- ---------------------------------------------------------------------------
 -- resolve_table_token(text) -> text

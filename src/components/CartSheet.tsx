@@ -20,7 +20,13 @@ export default function CartSheet({
   const { lines, increment, decrement, removeLine, clear } = useCart()
   const total = useCart((s) => s.total())
 
-  const [name, setName] = useState("")
+  const [name, setName] = useState(() => {
+    try {
+      return localStorage.getItem("stories-customer-name") ?? ""
+    } catch {
+      return ""
+    }
+  })
   const [nameError, setNameError] = useState(false)
   const [notes, setNotes] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -188,6 +194,11 @@ export default function CartSheet({
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value)
+                  try {
+                    localStorage.setItem("stories-customer-name", e.target.value)
+                  } catch {
+                    // Storage unavailable (private mode) — name stays in-memory.
+                  }
                   if (e.target.value.trim()) setNameError(false)
                 }}
                 placeholder={strings.customerNamePlaceholder[lang]}

@@ -153,8 +153,9 @@ export async function fetchMenu(includeUnavailable = false): Promise<MenuData> {
     menuQuery,
   ])
 
-  if (cats.error) throw new Error(cats.error.message)
-  if (items.error) throw new Error(items.error.message)
+  if (cats.error || items.error) {
+    throw new Error("Something went wrong. Please try again.")
+  }
 
   const categories: Category[] = ((cats.data ?? []) as CategoryRow[]).map((r) => ({
     id: r.id,
@@ -507,7 +508,7 @@ export async function fetchTableOrders(tableNumber: string): Promise<any[]> {
   if (!supabase) return []
   const { data, error } = await supabase
     .from("orders")
-    .select("*")
+    .select("id, created_at, table_number, customer_name, notes, payment_method, items, total, paid")
     .eq("table_number", tableNumber)
     .order("created_at", { ascending: false })
     .limit(50)

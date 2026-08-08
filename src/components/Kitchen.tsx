@@ -125,7 +125,7 @@ export default function Kitchen() {
     try {
       const { data, error: err } = await supabase
         .from("orders")
-        .select("*")
+        .select("id, created_at, table_number, customer_name, notes, payment_method, items, total, paid")
         .order("created_at", { ascending: false })
         .limit(50)
       if (err) {

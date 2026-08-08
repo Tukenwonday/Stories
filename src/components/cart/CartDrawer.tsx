@@ -22,7 +22,13 @@ export default function CartDrawer({ tableNumber, token, canOrder, onClose }: Ca
   const count = useCart((s) => s.count());
   const { addToast } = useToast();
 
-  const [name, setName] = useState("");
+  const [name, setName] = useState(() => {
+    try {
+      return localStorage.getItem("stories-customer-name") ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [nameError, setNameError] = useState(false);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -164,6 +170,11 @@ export default function CartDrawer({ tableNumber, token, canOrder, onClose }: Ca
             value={name}
             onChange={(e) => {
               setName(e.target.value);
+              try {
+                localStorage.setItem("stories-customer-name", e.target.value);
+              } catch {
+                // Storage unavailable (private mode) — name stays in-memory.
+              }
               if (e.target.value.trim()) setNameError(false);
             }}
             onBlur={() => {
