@@ -161,14 +161,18 @@ on conflict (id) do update set public = true;
 -- bucket are readable by everyone and writable by anyone holding the anon key
 -- (the kitchen PIN gates uploads in the app UI).
 -- UPDATE and DELETE are blocked for anon — overwrites are never safe, and
--- deletes go through the delete_menu_image() SECURITY DEFINER function below.
+-- deletes go through the delete-storage-object Edge Function instead.
 drop policy if exists "menu-images select" on storage.objects;
 create policy "menu-images select" on storage.objects
   for select using (bucket_id = 'menu-images');
 
 drop policy if exists "menu-images insert" on storage.objects;
 create policy "menu-images insert" on storage.objects
-  for insert to anon with check (bucket_id = 'menu-images');
+  for insert to anon
+  with check (
+    bucket_id = 'menu-images'
+    and lower(split_part(name, '.', -1)) in ('webp', 'jpg', 'png', 'gif', 'avif')
+  );
 
 drop policy if exists "menu-images update" on storage.objects;
 
@@ -511,20 +515,12 @@ create or replace function delete_menu_item_secure(
   p_pin text,
   p_id text
 ) returns void language plpgsql security definer as $$
-declare
-  v_image text;
 begin
   if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
 
-  select image into v_image from public.menu where id = p_id;
-
   delete from public.menu where id = p_id;
-
-  if v_image is not null then
-    perform storage.remove(array[v_image]);
-  end if;
 end;
 $$;
 
@@ -562,38 +558,13 @@ create or replace function delete_category_secure(
   p_pin text,
   p_id text
 ) returns void language plpgsql security definer as $$
-declare
-  v_images text[];
 begin
   if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
     raise exception 'Invalid PIN';
   end if;
-
-  select array_agg(image) into v_images
-  from public.menu where category = p_id and image is not null;
 
   delete from public.menu where category = p_id;
   delete from public.categories where id = p_id;
-
-  if v_images is not null then
-    perform storage.remove(v_images);
-  end if;
-end;
-$$;
-
--- ---------------------------------------------------------------------------
--- clear_table_orders_secure(...) — checkout clears all orders for a table.
--- ---------------------------------------------------------------------------
-create or replace function clear_table_orders_secure(
-  p_pin text,
-  p_table_number text
-) returns void language plpgsql security definer as $$
-begin
-  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
-    raise exception 'Invalid PIN';
-  end if;
-
-  delete from public.orders where table_number = p_table_number;
 end;
 $$;
 
@@ -613,24 +584,11 @@ begin
 end;
 $$;
 
--- ---------------------------------------------------------------------------
--- delete_menu_image(p_pin, p_path) -> void
--- Deletes a file from the menu-images storage bucket. The kitchen PIN must be
--- correct — this prevents anonymous callers from wiping images via the API.
--- ---------------------------------------------------------------------------
-create or replace function delete_menu_image(p_pin text, p_path text)
-returns void
-language plpgsql
-security definer
-as $$
-begin
-  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
-    raise exception 'Invalid PIN';
-  end if;
-
-  perform storage.remove(array[p_path]);
-end;
-$$;
+-- NOTE: Storage image deletion is NOT done here. Storage tables cannot be
+-- deleted directly (the storage extension blocks it with 42501), and pg_net's
+-- async HTTP calls proved unreliable on this instance. Instead the client
+-- calls the `delete-storage-object` Supabase Edge Function (PIN-gated, uses
+-- the server-side service role key). See supabase/functions/.
 
 -- =============================================================================
 -- 7. SEED DATA
@@ -640,6 +598,10 @@ $$;
 insert into public.app_config (key, value)
 values ('kitchen_pin', '2026')
 on conflict (key) do nothing;
+
+-- service_role_key is NOT stored in app_config (it would be a committed
+-- secret). It lives only in the delete-storage-object Edge Function's runtime
+-- environment, which Supabase provides automatically.
 
 -- Table QR tokens. These are the same tokens used by table-links.md; adding a
 -- table means adding one row here and one link in that file.

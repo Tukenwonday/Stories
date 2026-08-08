@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
-import { ArrowLeft, Clock, Lock, RefreshCw, Trash2, X, CheckCircle2, Circle } from "lucide-react"
+import { ArrowLeft, Clock, Lock, RefreshCw, X, CheckCircle2, Circle } from "lucide-react"
 import type { TableSummary } from "../lib/supabase"
-import { supabase, verifyKitchenPin, fetchTablesSummary, fetchTableOrders, clearTableOrders, markOrderPaid } from "../lib/supabase"
+import { supabase, verifyKitchenPin, fetchTablesSummary, fetchTableOrders, markOrderPaid } from "../lib/supabase"
 import { checkoutStrings, t } from "../checkout-i18n"
 
 function timeAgo(dateStr: string): string {
@@ -39,7 +39,6 @@ export default function Checkout() {
   const [paidOrderIds, setPaidOrderIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [clearing, setClearing] = useState(false)
   const [channelError, setChannelError] = useState(false)
 
   useEffect(() => {
@@ -179,33 +178,6 @@ export default function Checkout() {
       if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
     }
   }, [authed, reloadCurrentView])
-
-  async function handleClear() {
-    if (!selectedTable) return
-    setClearing(true)
-    setError(null)
-    try {
-      const pin = sessionStorage.getItem("kitchenPin")
-      if (!pin) {
-        setError("Session expired. Please log in again.")
-        return
-      }
-      const res = await clearTableOrders(pin, selectedTable)
-      if (res.ok) {
-        setPaidOrderIds(new Set())
-        setTimeout(() => {
-          setView("dashboard")
-          setSelectedTable(null)
-        }, 800)
-      } else {
-        setError(res.error ?? "Failed")
-      }
-    } catch {
-      setError("Network error")
-    } finally {
-      setClearing(false)
-    }
-  }
 
   async function handleMarkPaid(orderId: string) {
     try {
@@ -414,22 +386,6 @@ export default function Checkout() {
             </>
           )}
         </main>
-
-        {orders.length > 0 && (
-          <div className="fixed inset-x-0 bottom-0 z-30 px-4 pb-safe">
-            <div className="mx-auto flex max-w-3xl justify-center">
-              <button
-                type="button"
-                onClick={handleClear}
-                disabled={clearing}
-                className="flex w-fit items-center justify-center gap-2 rounded-full bg-red-500 px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-black/40 transition-transform active:scale-[0.99] disabled:opacity-50"
-              >
-                <Trash2 className="h-4 w-4" />
-                {clearing ? t("clearing", lang) : t("clearTable", lang)}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     )
   }

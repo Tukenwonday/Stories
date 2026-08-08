@@ -59,7 +59,7 @@ export async function uploadMenuItemImage(
 }
 
 /**
- * Deletes a storage object by path via the delete_menu_image RPC.
+ * Deletes a storage object by path via the delete-storage-object Edge Function.
  * The kitchen PIN is required server-side to authorize the delete.
  */
 export async function deleteStorageObject(path: string): Promise<{ ok: boolean; error?: string }> {
@@ -69,8 +69,11 @@ export async function deleteStorageObject(path: string): Promise<{ ok: boolean; 
   try {
     const pin = sessionStorage.getItem("kitchenPin")
     if (!pin) return { ok: false, error: "Session expired" }
-    const { error } = await supabase.rpc("delete_menu_image", { p_pin: pin, p_path: path })
+    const { data, error } = await supabase.functions.invoke("delete-storage-object", {
+      body: { pin, path },
+    })
     if (error) return { ok: false, error: error.message }
+    if (!data?.ok) return { ok: false, error: data?.error ?? "Delete failed" }
     return { ok: true }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }

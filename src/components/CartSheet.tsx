@@ -49,14 +49,19 @@ export default function CartSheet({
       setServerError(e instanceof Error ? e.message : "Something went wrong")
       return
     }
-    const res = await submitOrder(payload, token)
+    try {
+      const res = await submitOrder(payload, token)
 
-    setSubmitting(false)
-    if (res.ok) {
-      setPlaced(true)
-      clear()
-    } else {
-      setServerError(res.error ?? "Something went wrong")
+      setSubmitting(false)
+      if (res.ok) {
+        setPlaced(true)
+        clear()
+      } else {
+        setServerError(res.error ?? "Something went wrong")
+      }
+    } catch {
+      setSubmitting(false)
+      setServerError("Network error. Your order was not sent — please try again.")
     }
   }
 

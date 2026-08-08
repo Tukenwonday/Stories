@@ -517,19 +517,6 @@ export async function fetchTableOrders(tableNumber: string): Promise<any[]> {
   return data ?? []
 }
 
-export async function clearTableOrders(
-  pin: string,
-  tableNumber: string,
-): Promise<{ ok: boolean; error?: string }> {
-  if (!supabase) return { ok: false, error: "Supabase not configured" }
-  const { error } = await supabase.rpc("clear_table_orders_secure", {
-    p_pin: pin,
-    p_table_number: tableNumber,
-  })
-  if (error) return { ok: false, error: error.message }
-  return { ok: true }
-}
-
 export async function markOrderPaid(
   pin: string,
   orderId: string,

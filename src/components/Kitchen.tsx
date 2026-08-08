@@ -68,6 +68,7 @@ interface KitchenOrder {
   payment_method: string
   items: KitchenOrderItem[]
   total: number
+  paid: boolean
 }
 
 export default function Kitchen() {
@@ -126,6 +127,7 @@ export default function Kitchen() {
       const { data, error: err } = await supabase
         .from("orders")
         .select("id, created_at, table_number, customer_name, notes, payment_method, items, total, paid")
+        .eq("paid", false)
         .order("created_at", { ascending: false })
         .limit(50)
       if (err) {
@@ -165,12 +167,17 @@ export default function Kitchen() {
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders", filter: "paid=eq.false" },
+        { event: "UPDATE", schema: "public", table: "orders" },
         (payload) => {
           if (updateDebounceRef.current) clearTimeout(updateDebounceRef.current)
           updateDebounceRef.current = setTimeout(() => {
             const row = payload.new as KitchenOrder
-            setOrders((prev) => prev.map((o) => (o.id === row.id ? row : o)))
+            if (row.paid) {
+              // Order was settled at checkout — remove it from the live kitchen view.
+              setOrders((prev) => prev.filter((o) => o.id !== row.id))
+            } else {
+              setOrders((prev) => prev.map((o) => (o.id === row.id ? row : o)))
+            }
           }, 300)
         },
       )
