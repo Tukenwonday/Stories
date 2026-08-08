@@ -20,5 +20,14 @@ export const onRequest: PagesFunction = async (context) => {
 
   const newResponse = new Response(response.body, response);
   newResponse.headers.set("Cache-Control", "public, max-age=31536000, s-maxage=31536000, immutable");
+
+  // Neutralize SVG XSS: SVGs are user-uploadable (anon insert policy) and are
+  // served from the app origin. Sandbox any SVG so scripts can't run if the
+  // file is opened directly in a browser.
+  const contentType = newResponse.headers.get("Content-Type") ?? "";
+  if (contentType.includes("image/svg+xml")) {
+    newResponse.headers.set("Content-Security-Policy", "sandbox; default-src 'none'");
+    newResponse.headers.set("X-Content-Type-Options", "nosniff");
+  }
   return newResponse;
 };
