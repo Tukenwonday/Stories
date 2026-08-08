@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Search, X } from "lucide-react"
 import type { Category, Lang, MenuItem } from "./types"
-import { LangContext } from "./lang-context"
+import { LangContext, persistLang, storedLang } from "./lang-context"
 import { strings } from "./i18n"
 import { fetchMenu, queryKeys } from "./lib/supabase"
 import { useQuery } from "@tanstack/react-query"
@@ -14,9 +14,14 @@ import CartButton from "./components/CartButton"
 import CartSheet from "./components/CartSheet"
 
 export default function App() {
-  const [lang, setLang] = useState<Lang>("ar")
+  const [lang, setLang] = useState<Lang>(storedLang)
   const dir: "ltr" | "rtl" = lang === "ar" ? "rtl" : "ltr"
-  const toggleLang = () => setLang((l) => (l === "ar" ? "en" : "ar"))
+  const toggleLang = () =>
+    setLang((l) => {
+      const next: Lang = l === "ar" ? "en" : "ar"
+      persistLang(next)
+      return next
+    })
   const [categories, setCategories] = useState<Category[]>([])
   const [menu, setMenu] = useState<MenuItem[]>([])
   const [activeCat, setActiveCat] = useState("")
