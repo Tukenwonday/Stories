@@ -9,7 +9,10 @@ export default function Header({ tableNumber }: { tableNumber: string | null }) 
       <button
         type="button"
         onClick={toggle}
-        className="absolute top-1/2 end-4 -translate-y-1/2 rounded-full border border-gold/40 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-widest text-gold transition-colors active:bg-gold/10"
+        className={
+          "absolute top-1/2 end-4 -translate-y-1/2 rounded-full border border-gold/40 px-3.5 py-1.5 text-[11px] font-bold text-gold transition-colors active:bg-gold/10 " +
+          (lang === "ar" ? "" : "uppercase tracking-widest")
+        }
       >
         {lang === "ar" ? "ENG" : "العربية"}
       </button>
@@ -22,7 +25,12 @@ export default function Header({ tableNumber }: { tableNumber: string | null }) 
       <h1 className="mt-1.5 font-serif text-lg font-bold uppercase tracking-[0.18em] text-gold">
         Stories
       </h1>
-      <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.28em] text-muted">
+      <p
+        className={
+          "mt-0.5 text-[10px] font-medium text-muted " +
+          (lang === "ar" ? "" : "uppercase tracking-[0.28em]")
+        }
+      >
         {strings.tagline[lang]}
       </p>
       {tableNumber && (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { Clock, Lock, RefreshCw, SlidersHorizontal } from "lucide-react"
+import { Clock, Lock, SlidersHorizontal } from "lucide-react"
 import type { Lang } from "../types"
 import { LangContext } from "../lang-context"
 import { supabase, verifyKitchenPin } from "../lib/supabase"
@@ -309,14 +309,6 @@ export default function Kitchen() {
               </button>
               <button
                 type="button"
-                onClick={load}
-                aria-label={t("refresh")}
-                className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface text-muted"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
                 onClick={() => {
                   sessionStorage.removeItem("kitchenAuthed")
                   setAuthed(false)
@@ -412,11 +404,14 @@ export default function Kitchen() {
                                     {it.quantity}× {lang === "ar" ? (it.title_ar ?? it.title) : it.title}
                                   </span>
                                   {it.modifiers.length > 0 && (
-                                    <span className="ms-2 text-[11px] text-muted">
-                                      {it.modifiers
-                                        .map((m) => (lang === "ar" ? (m.option_ar ?? m.option) : m.option))
-                                        .join(" · ")}
-                                    </span>
+                                    <ul className="mt-1 list-none">
+                                      {it.modifiers.map((m, k) => (
+                                        <li key={k} className="flex items-center gap-1.5 text-sm leading-relaxed text-foreground/85">
+                                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                                          {lang === "ar" ? (m.option_ar ?? m.option) : m.option}
+                                        </li>
+                                      ))}
+                                    </ul>
                                   )}
                                 </div>
                                 <span className="shrink-0 text-sm font-semibold text-foreground">

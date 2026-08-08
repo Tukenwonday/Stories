@@ -105,7 +105,13 @@ export default function MenuItemSheet({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-5">
-          <h2 className="text-xl font-bold uppercase tracking-widest text-foreground">
+          <h2
+            className={
+              lang === "ar"
+                ? "text-lg font-bold leading-snug text-foreground"
+                : "text-xl font-bold uppercase tracking-widest text-foreground"
+            }
+          >
             {item.title[lang]}
           </h2>
 
@@ -118,8 +124,8 @@ export default function MenuItemSheet({
           <p className="mt-3 text-sm leading-relaxed text-muted">{item.description[lang]}</p>
 
           {reasonLabel && (
-            <div className="mt-3 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3">
-              <p className="text-sm font-bold text-gold">{reasonLabel}</p>
+            <div className="mt-3 rounded-xl border border-red-400/40 bg-red-400/10 px-4 py-3">
+              <p className="text-sm font-bold text-red-400">{reasonLabel}</p>
               <p className="mt-0.5 text-xs text-muted">{strings.notServedHint[lang]}</p>
             </div>
           )}

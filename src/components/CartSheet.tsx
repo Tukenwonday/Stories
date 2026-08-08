@@ -112,7 +112,12 @@ export default function CartSheet({
                   <div key={l.lineId} className="py-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h4 className="text-sm font-bold uppercase tracking-widest text-foreground">
+                        <h4
+                          className={
+                            "text-sm font-bold text-foreground " +
+                            (lang === "ar" ? "" : "uppercase tracking-widest")
+                          }
+                        >
                           {l.title[lang]}
                         </h4>
                         {l.modifiers.length > 0 && (

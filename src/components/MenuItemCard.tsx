@@ -48,14 +48,18 @@ export default function MenuItemCard({
       <div className="min-w-0 flex-1">
         <h3
           className={
-            "text-base font-bold uppercase tracking-widest " +
-            (reason ? "text-muted line-through decoration-gold/50" : "text-foreground")
+            (lang === "ar"
+              ? "text-sm font-semibold leading-relaxed"
+              : "text-[15px] font-bold uppercase tracking-wider") +
+            (reason ? " text-muted line-through decoration-gold/50" : " text-foreground")
           }
         >
           {item.title[lang]}
         </h3>
         {label && (
-          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-gold">{label}</p>
+          <p className={"mt-0.5 text-[10px] font-bold text-red-400 " + (lang === "ar" ? "" : "uppercase tracking-wider")}>
+            {label}
+          </p>
         )}
       </div>
 

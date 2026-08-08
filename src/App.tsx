@@ -155,7 +155,7 @@ export default function App() {
 
   return (
     <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
-      <div dir={dir} className="min-h-screen bg-bg font-sans text-foreground">
+      <div dir={dir} className="menu-ordering-screen min-h-screen bg-bg font-sans text-foreground">
         <div className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
           <Header tableNumber={tableNumber} />
           {!isSearching && (
@@ -183,7 +183,13 @@ export default function App() {
         {/* Menu list */}
         <main className="mx-auto max-w-2xl px-4 pb-32 pt-6">
           <div className="mb-1 h-px w-12 bg-gold/70" />
-          <h2 className="mt-3 text-xl font-bold uppercase tracking-[0.3em] text-gold md:text-2xl">
+          <h2
+            className={
+              lang === "ar"
+                ? "mt-3 text-xl font-bold text-gold md:text-2xl"
+                : "mt-3 text-xl font-bold uppercase tracking-[0.3em] text-gold md:text-2xl"
+            }
+          >
             {isSearching ? strings.search[lang] : activeLabel}
           </h2>
 
