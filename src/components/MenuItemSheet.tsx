@@ -87,10 +87,10 @@ export default function MenuItemSheet({
         className="animate-fade absolute inset-0 bg-black/70"
       />
 
-      <div className="animate-sheet relative flex max-h-[90vh] flex-col overflow-hidden rounded-t-3xl border-t border-border bg-surface">
+      <div className="animate-sheet relative flex max-h-[90vh] w-full max-w-md mx-auto flex-col overflow-hidden rounded-t-3xl border-t border-border bg-surface">
         {/* Image header */}
         {item.image && (
-          <div className="relative w-full shrink-0 aspect-[4/3] max-h-[300px] sm:max-h-[350px] overflow-hidden bg-zinc-900">
+          <div className="relative w-full shrink-0 aspect-[4/3] overflow-hidden bg-zinc-900">
             <img src={buildPublicImageUrl(item.image)} alt={item.title.en} loading="lazy" decoding="async" className="h-full w-full object-cover object-center" />
             <button
               type="button"
