@@ -120,7 +120,7 @@ export default function Kitchen() {
   const load = useCallback(async () => {
     if (!supabase) {
       setLoading(false)
-      setError("not configured")
+      setError("Something went wrong. Please try again.")
       return
     }
     try {

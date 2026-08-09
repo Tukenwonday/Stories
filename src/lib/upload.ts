@@ -1,5 +1,5 @@
 import { compressImage } from "./images"
-import { supabase, buildPublicImageUrl } from "./supabase"
+import { supabase, buildPublicImageUrl, GENERIC_ERROR } from "./supabase"
 
 const BUCKET = "menu-images"
 
@@ -34,7 +34,7 @@ export async function uploadMenuItemImage(
   oldImage?: string,
 ): Promise<UploadResult> {
   if (!supabase) {
-    return { ok: false, error: "Image upload is not configured" }
+    return { ok: false, error: GENERIC_ERROR }
   }
   try {
     const { blob, ext } = await compressImage(file)
@@ -64,7 +64,7 @@ export async function uploadMenuItemImage(
  */
 export async function deleteStorageObject(path: string): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) {
-    return { ok: false, error: "Storage not configured" }
+    return { ok: false, error: GENERIC_ERROR }
   }
   try {
     const pin = sessionStorage.getItem("kitchenPin")

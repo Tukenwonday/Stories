@@ -5,11 +5,15 @@ const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 /**
- * Supabase is optional until you fill in the .env values.
- * When the env vars are missing we fall back to "demo mode" and
- * simply log the payload instead of inserting a row.
+ * Supabase must be configured (VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY).
+ * There is intentionally NO demo mode / offline fallback: if the env vars are
+ * missing every data operation throws, so a misconfigured deployment fails
+ * loudly with a generic message instead of showing stale or fake data.
  */
 export const isSupabaseConfigured = Boolean(url && anonKey)
+
+/** Customer-facing message used whenever the backend is unavailable. */
+export const GENERIC_ERROR = "Something went wrong. Please try again."
 
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url, anonKey)
@@ -98,27 +102,22 @@ function publicImageUrl(value: string | null | undefined): string | undefined {
 /**
  * Resolves a secret table token (from a QR code or NFC tag) to its table
  * number. Validated server-side via the resolve_table_token RPC so the full
- * token list is never exposed; unknown tokens return null. In demo mode (no
- * Supabase) it checks the bundled public/tables.json.
+ * token list is never exposed; unknown tokens return null.
  */
 export async function resolveTableToken(token: string): Promise<string | null> {
   if (!token) return null
-  if (supabase) {
-    const { data, error } = await supabase.rpc("resolve_table_token", { p_token: token })
-    if (error) throw error
-    return (data as string | null) ?? null
+  if (!supabase) {
+    throw new Error(GENERIC_ERROR)
   }
-  const res = await fetch("/tables.json")
-  if (!res.ok) throw new Error("Failed to load table data")
-  const data: { tables: { table: number; token: string }[] } = await res.json()
-  const found = data.tables.find((t) => t.token === token)
-  return found ? String(found.table).padStart(2, "0") : null
+  const { data, error } = await supabase.rpc("resolve_table_token", { p_token: token })
+  if (error) throw error
+  return (data as string | null) ?? null
 }
 
 /**
- * Loads the menu. When Supabase is configured it reads the `categories` and
- * `menu` tables; otherwise it falls back to the bundled public/menu.json so
- * the app still works without credentials (demo mode).
+ * Loads the menu from the `categories` and `menu` tables. There is no offline
+ * fallback: if Supabase is not configured this throws so the storefront shows
+ * an error instead of stale data.
  *
  * `includeUnavailable` defaults to false so the storefront only sees live
  * dishes. Pass true from staff screens (MenuEditor) so disabled dishes can
@@ -126,13 +125,7 @@ export async function resolveTableToken(token: string): Promise<string | null> {
  */
 export async function fetchMenu(includeUnavailable = false): Promise<MenuData> {
   if (!supabase) {
-    const res = await fetch("/menu.json")
-    if (!res.ok) throw new Error("Failed to load menu data")
-    const data = (await res.json()) as MenuData
-    return {
-      categories: data.categories,
-      menu: data.menu.map((i) => (i.image ? { ...i, image: buildPublicImageUrl(i.image) } : i)),
-    }
+    throw new Error(GENERIC_ERROR)
   }
 
   const menuQuery = supabase
@@ -205,7 +198,7 @@ export async function updateMenuItem(
   id: string,
   updates: MenuUpdate,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("update_menu_item_secure", {
     p_pin: pin,
     p_id: id,
@@ -230,7 +223,7 @@ export async function deleteMenuItem(
   pin: string,
   id: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("delete_menu_item_secure", {
     p_pin: pin,
     p_id: id,
@@ -260,7 +253,7 @@ export async function insertMenuItem(
   pin: string,
   item: MenuInsert,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("insert_menu_item_secure", {
     p_pin: pin,
     p_id: item.id,
@@ -292,7 +285,7 @@ export async function insertCategory(
   pin: string,
   category: CategoryInsert,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("insert_category_secure", {
     p_pin: pin,
     p_id: category.id,
@@ -310,7 +303,7 @@ export async function deleteCategory(
   pin: string,
   id: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("delete_category_secure", {
     p_pin: pin,
     p_id: id,
@@ -382,19 +375,16 @@ export function buildOrderPayload(args: {
 }
 
 /**
- * Sends the order to Supabase when configured, otherwise resolves in demo mode.
- * The order is placed through the submit_order_secure RPC, which requires a
- * valid table token and derives the table_number server-side, so the public
- * anon key alone can never insert orders.
+ * Places an order through the submit_order_secure RPC, which requires a valid
+ * table token and derives the table_number server-side, so the public anon key
+ * alone can never insert orders. There is no demo/offline fallback.
  */
 export async function submitOrder(
   payload: OrderPayload,
   token: string,
-): Promise<{ ok: boolean; demo: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) {
-    // Simulate network latency for a realistic UX in demo mode.
-    await new Promise((r) => setTimeout(r, 700))
-    return { ok: true, demo: true }
+    return { ok: false, error: GENERIC_ERROR }
   }
 
   const { error } = await supabase.rpc("submit_order_secure", {
@@ -406,9 +396,9 @@ export async function submitOrder(
     p_local_time: payload.local_time,
   })
   if (error) {
-    return { ok: false, demo: false, error: error.message }
+    return { ok: false, error: error.message }
   }
-  return { ok: true, demo: false }
+  return { ok: true }
 }
 
 /**
@@ -419,9 +409,7 @@ export async function submitOrder(
  */
 export async function verifyKitchenPin(pin: string): Promise<boolean> {
   if (!supabase) {
-    throw new Error(
-      "Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
-    )
+    throw new Error(GENERIC_ERROR)
   }
   const { data, error } = await supabase.rpc("verify_kitchen_pin", { p_pin: pin.trim() })
   if (error) {
@@ -437,9 +425,7 @@ export async function verifyKitchenPin(pin: string): Promise<boolean> {
  */
 export async function updateKitchenPin(oldPin: string, newPin: string): Promise<boolean> {
   if (!supabase) {
-    throw new Error(
-      "Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
-    )
+    throw new Error(GENERIC_ERROR)
   }
   const { data, error } = await supabase.rpc("update_kitchen_pin", { p_old_pin: oldPin.trim(), p_new_pin: newPin.trim() })
   if (error) {
@@ -457,7 +443,9 @@ export interface TableSummary {
 }
 
 export async function fetchTablesSummary(): Promise<TableSummary[]> {
-  if (!supabase) return []
+  if (!supabase) {
+    throw new Error(GENERIC_ERROR)
+  }
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from("orders")
@@ -510,7 +498,9 @@ export async function fetchTablesSummary(): Promise<TableSummary[]> {
 }
 
 export async function fetchTableOrders(tableNumber: string): Promise<any[]> {
-  if (!supabase) return []
+  if (!supabase) {
+    throw new Error(GENERIC_ERROR)
+  }
   const { data, error } = await supabase
     .from("orders")
     .select("id, created_at, table_number, customer_name, notes, payment_method, items, total, paid")
@@ -526,7 +516,7 @@ export async function markOrderPaid(
   pin: string,
   orderId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!supabase) return { ok: false, error: "Supabase not configured" }
+  if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("mark_order_paid_secure", {
     p_pin: pin,
     p_order_id: orderId,

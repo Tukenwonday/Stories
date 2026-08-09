@@ -548,7 +548,7 @@ function ItemEditModal({
       // Upload staged image if present
       if (stagedImage) {
         if (!supabase) {
-          setSaveError("Supabase not configured")
+          setSaveError("Something went wrong. Please try again.")
           return
         }
         const { error } = await supabase.storage.from("menu-images").upload(stagedImage.path, stagedImage.blob, {
