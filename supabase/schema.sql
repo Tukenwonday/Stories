@@ -172,6 +172,7 @@ create policy "menu-images insert" on storage.objects
   with check (
     bucket_id = 'menu-images'
     and lower(split_part(name, '.', -1)) in ('webp', 'jpg', 'png', 'gif', 'avif')
+    and lower(coalesce(metadata->>'mimetype', '')) in ('image/webp', 'image/jpeg', 'image/png', 'image/gif', 'image/avif')
   );
 
 drop policy if exists "menu-images update" on storage.objects;
@@ -596,7 +597,7 @@ $$;
 
 -- Default kitchen PIN (plain text). Change via the "Change Kitchen Passphrase" UI.
 insert into public.app_config (key, value)
-values ('kitchen_pin', '2026')
+values ('kitchen_pin', 'ADMI1N12#$@$@$@$')
 on conflict (key) do nothing;
 
 -- service_role_key is NOT stored in app_config (it would be a committed

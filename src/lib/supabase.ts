@@ -413,11 +413,15 @@ export async function submitOrder(
 
 /**
  * Validates the kitchen PIN using the server-side RPC function.
- * In demo mode, checks against "2026".
+ * There is intentionally NO client-side fallback secret: if Supabase is not
+ * configured the app throws an initialization error instead of accepting a
+ * hardcoded PIN.
  */
 export async function verifyKitchenPin(pin: string): Promise<boolean> {
   if (!supabase) {
-    return pin === "2026"
+    throw new Error(
+      "Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
+    )
   }
   const { data, error } = await supabase.rpc("verify_kitchen_pin", { p_pin: pin.trim() })
   if (error) {
@@ -433,8 +437,9 @@ export async function verifyKitchenPin(pin: string): Promise<boolean> {
  */
 export async function updateKitchenPin(oldPin: string, newPin: string): Promise<boolean> {
   if (!supabase) {
-    // Demo mode: no-op success
-    return true
+    throw new Error(
+      "Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
+    )
   }
   const { data, error } = await supabase.rpc("update_kitchen_pin", { p_old_pin: oldPin.trim(), p_new_pin: newPin.trim() })
   if (error) {

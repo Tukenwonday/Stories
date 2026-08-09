@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Check, Minus, Plus, ShoppingBag, Trash2, Wallet, X } from "lucide-react"
 import { useLang } from "../lang-context"
 import { strings } from "../i18n"
@@ -30,29 +30,27 @@ export default function CartSheet({
   const [nameError, setNameError] = useState(false)
   const [notes, setNotes] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  // Synchronous guard: the `submitting` state is async, so two clicks in the
+  // same tick could both reach submitOrder before the button re-renders. The
+  // ref closes that race so a slow connection can never submit a duplicate.
+  const submittingRef = useRef(false)
   const [placed, setPlaced] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
   async function handleSubmit() {
+    if (submittingRef.current) return
     if (!name.trim()) {
       setNameError(true)
       return
     }
+    submittingRef.current = true
     setSubmitting(true)
     setServerError(null)
 
-    let payload
     try {
-      payload = buildOrderPayload({ tableNumber, customerName: name, notes, lines })
-    } catch (e) {
-      setSubmitting(false)
-      setServerError(e instanceof Error ? e.message : "Something went wrong")
-      return
-    }
-    try {
+      const payload = buildOrderPayload({ tableNumber, customerName: name, notes, lines })
       const res = await submitOrder(payload, token)
 
-      setSubmitting(false)
       if (res.ok) {
         setPlaced(true)
         clear()
@@ -60,8 +58,10 @@ export default function CartSheet({
         setServerError(res.error ?? "Something went wrong")
       }
     } catch {
-      setSubmitting(false)
       setServerError("Network error. Your order was not sent — please try again.")
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
     }
   }
 

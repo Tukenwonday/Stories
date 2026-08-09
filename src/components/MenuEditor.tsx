@@ -532,6 +532,9 @@ function ItemEditModal({
       return
     }
     setSaving(true)
+    // Path of the blob uploaded in this save. Removed again if the RPC fails
+    // so a failed save never leaks an orphaned storage object.
+    let uploadedPath: string | undefined
     try {
       const pin = sessionStorage.getItem("kitchenPin")
       if (!pin) {
@@ -557,6 +560,7 @@ function ItemEditModal({
           setSaveError(error.message)
           return
         }
+        uploadedPath = stagedImage.path
         imageToSave = stagedImage.path
         oldImagePath = item.image ? extractStoragePath(item.image) : undefined
       }
@@ -579,7 +583,8 @@ function ItemEditModal({
       if (res.ok) {
         // Clean up old storage object if image changed
         if (oldImagePath && oldImagePath !== imageToSave) {
-          await deleteStorageObject(oldImagePath)
+          const del = await deleteStorageObject(oldImagePath)
+          if (!del.ok) console.error("[menu-editor] failed to delete old image:", del.error)
         }
         // Revoke preview URL
         if (stagedImage) {
@@ -594,9 +599,13 @@ function ItemEditModal({
         }, 800)
       } else {
         setSaveError(res.error ?? "Failed")
+        // The freshly-uploaded blob is unreferenced — remove it.
+        if (uploadedPath) await deleteStorageObject(uploadedPath)
       }
     } catch {
       setSaveError("Network error")
+      // The freshly-uploaded blob is unreferenced — remove it.
+      if (uploadedPath) await deleteStorageObject(uploadedPath)
     } finally {
       setSaving(false)
     }
@@ -637,7 +646,8 @@ function ItemEditModal({
       if (res.ok) {
         // Delete storage asset AFTER successful DB deletion
         if (item.image) {
-          await deleteStorageObject(extractStoragePath(item.image))
+          const del = await deleteStorageObject(extractStoragePath(item.image))
+          if (!del.ok) console.error("[menu-editor] failed to delete image:", del.error)
         }
         setSaveError(null)
         onDeleted()
@@ -1153,7 +1163,8 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
       if (res.ok) {
         // Delete storage assets AFTER successful category deletion
         for (const path of imagePaths) {
-          await deleteStorageObject(path)
+          const del = await deleteStorageObject(path)
+          if (!del.ok) console.error("[menu-editor] failed to delete image:", del.error)
         }
         setConfirmingDeleteCat(null)
         load()

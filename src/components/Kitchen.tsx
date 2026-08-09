@@ -148,37 +148,33 @@ export default function Kitchen() {
     if (!authed || !client) return
     load()
 
-    const insertDebounceRef = { current: null as ReturnType<typeof setTimeout> | null }
-    const updateDebounceRef = { current: null as ReturnType<typeof setTimeout> | null }
-
     const channel = client
       .channel("kitchen-orders")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders", filter: "paid=eq.false" },
         (payload) => {
-          if (insertDebounceRef.current) clearTimeout(insertDebounceRef.current)
-          insertDebounceRef.current = setTimeout(() => {
-            const row = payload.new as KitchenOrder
-            setOrders((prev) => [row, ...prev.filter((o) => o.id !== row.id)].slice(0, 50))
-            playNewOrderChime()
-          }, 300)
+          const row = payload.new as KitchenOrder
+          // No debounce: realtime delivers each change once, so every insert is
+          // applied immediately. The id-dedup keeps rapid orders from stacking
+          // duplicates without ever dropping an order.
+          setOrders((prev) =>
+            prev.some((o) => o.id === row.id) ? prev : [row, ...prev].slice(0, 50),
+          )
+          playNewOrderChime()
         },
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders" },
         (payload) => {
-          if (updateDebounceRef.current) clearTimeout(updateDebounceRef.current)
-          updateDebounceRef.current = setTimeout(() => {
-            const row = payload.new as KitchenOrder
-            if (row.paid) {
-              // Order was settled at checkout — remove it from the live kitchen view.
-              setOrders((prev) => prev.filter((o) => o.id !== row.id))
-            } else {
-              setOrders((prev) => prev.map((o) => (o.id === row.id ? row : o)))
-            }
-          }, 300)
+          const row = payload.new as KitchenOrder
+          if (row.paid) {
+            // Order was settled at checkout — remove it from the live kitchen view.
+            setOrders((prev) => prev.filter((o) => o.id !== row.id))
+          } else {
+            setOrders((prev) => prev.map((o) => (o.id === row.id ? row : o)))
+          }
         },
       )
       .subscribe((status) => {
@@ -191,8 +187,6 @@ export default function Kitchen() {
 
     return () => {
       client.removeChannel(channel)
-      if (insertDebounceRef.current) clearTimeout(insertDebounceRef.current)
-      if (updateDebounceRef.current) clearTimeout(updateDebounceRef.current)
     }
   }, [authed, load])
 
