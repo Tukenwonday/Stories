@@ -15,7 +15,7 @@ import { resolveTableToken } from "../lib/supabase"
  */
 
 const SESSION_KEY = "table_session"
-const SESSION_MS = 2 * 60 * 60 * 1000
+const SESSION_MS = 10 * 1000
 
 export interface TableSession {
   token: string
