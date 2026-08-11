@@ -1,12 +1,29 @@
+const CACHE_CONTROL = "public, max-age=31536000, s-maxage=31536000, immutable";
+
+function addSvgSandboxHeaders(response: Response): Response {
+  const newResponse = new Response(response.body, response);
+  const contentType = newResponse.headers.get("Content-Type") ?? "";
+  if (contentType.includes("image/svg+xml")) {
+    newResponse.headers.set("Content-Security-Policy", "sandbox; default-src 'none'");
+    newResponse.headers.set("X-Content-Type-Options", "nosniff");
+  }
+  return newResponse;
+}
+
 export const onRequest: PagesFunction = async (context) => {
-  // Read-only proxy: only GET/HEAD are allowed. Uploads and deletes must go
-  // through the PIN-gated RPCs so anonymous callers can't write to the bucket
-  // through the Pages origin.
   const method = context.request.method.toUpperCase();
   if (method !== "GET" && method !== "HEAD") {
     return new Response("Method Not Allowed", { status: 405 });
   }
 
+  // Try edge cache first — serves from Cloudflare memory with zero worker execution
+  const cache = caches.default;
+  const cachedResponse = await cache.match(context.request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  // Cache miss: fetch from Supabase origin
   const url = new URL(context.request.url);
   const targetUrl = `https://doinkehdvtvqzcikwwos.supabase.co${url.pathname}${url.search}`;
 
@@ -18,16 +35,23 @@ export const onRequest: PagesFunction = async (context) => {
     headers,
   });
 
-  const newResponse = new Response(response.body, response);
-  newResponse.headers.set("Cache-Control", "public, max-age=31536000, s-maxage=31536000, immutable");
+  // Only cache successful responses
+  if (response.status === 200) {
+    const newResponse = new Response(response.body, response);
+    newResponse.headers.set("Cache-Control", CACHE_CONTROL);
+    // Strip revalidation headers — images are immutable content-addressed assets
+    newResponse.headers.delete("ETag");
+    newResponse.headers.delete("Last-Modified");
+    newResponse.headers.delete("Set-Cookie");
 
-  // Neutralize SVG XSS: SVGs are user-uploadable (anon insert policy) and are
-  // served from the app origin. Sandbox any SVG so scripts can't run if the
-  // file is opened directly in a browser.
-  const contentType = newResponse.headers.get("Content-Type") ?? "";
-  if (contentType.includes("image/svg+xml")) {
-    newResponse.headers.set("Content-Security-Policy", "sandbox; default-src 'none'");
-    newResponse.headers.set("X-Content-Type-Options", "nosniff");
+    const cacheResponse = new Response(newResponse.body, newResponse);
+    context.waitUntil(cache.put(context.request, cacheResponse));
+
+    return addSvgSandboxHeaders(newResponse);
   }
-  return newResponse;
+
+  // Non-200 responses: return without caching
+  const newResponse = new Response(response.body, response);
+  newResponse.headers.set("Cache-Control", CACHE_CONTROL);
+  return addSvgSandboxHeaders(newResponse);
 };
