@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import type { CartLine, Category, MenuItem, ModifierGroup, NotServedWindow } from "../types"
+import { logError } from "./logger"
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -21,6 +22,12 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
 
 // The Pages deployment acts as our CDN/proxy for Supabase storage.
 const PAGES_ORIGIN = "https://stories-7rn.pages.dev"
+const STORAGE_MARKER = "/storage/v1/object/public/menu-images/"
+
+// Rendered when an image path is rejected (cannot be routed through the CDN
+// /storage/* endpoint). A transparent 1x1 GIF: invisible in the UI, never a
+// broken-image icon, and never a direct hit on an external origin.
+const FALLBACK_IMAGE = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
 
 interface CategoryRow {
   id: string
@@ -59,40 +66,42 @@ export const queryKeys = {
 /**
  * Builds a public image URL for the menu-images bucket using the Pages origin.
  * Accepts a bare storage path ("dishes/abc.webp"), a legacy Supabase storage URL
- * from any project subdomain, or an already-normalized Pages URL. Always returns
- * a clean, cacheable Pages-origin URL (query params/fragments stripped) so the
- * browser never loads from supabase.co directly.
+ * from any project subdomain, or an already-normalized Pages storage URL. Uses a
+ * strict allowlist: every returned URL is either served from the Pages-origin
+ * /storage/* endpoint or is a transparent fallback. External URLs are never
+ * passed through, so the browser can never hit an origin outside the CDN
+ * directly. Query params/fragments are stripped so URLs stay cacheable.
  */
 export function buildPublicImageUrl(storagePath: string): string {
   const clean = storagePath.trim().split("?")[0].split("#")[0]
 
-  // Already a Pages-origin URL — pass through.
-  if (clean.startsWith(PAGES_ORIGIN)) return clean
+  // Already a Pages-origin storage URL — pass through.
+  if (clean.startsWith(PAGES_ORIGIN) && clean.includes(STORAGE_MARKER)) return clean
 
   // Bare storage path (new staged uploads) — prefix with Pages origin.
   if (!/^https?:\/\//i.test(clean)) {
     const path = clean.replace(/^\/+/, "")
-    return `${PAGES_ORIGIN}/storage/v1/object/public/menu-images/${path}`
+    return `${PAGES_ORIGIN}${STORAGE_MARKER}${path}`
   }
 
   // Any Supabase storage URL (any subdomain) — extract the object path and
   // re-host it under the Pages origin.
-  const marker = "/storage/v1/object/public/menu-images/"
-  const idx = clean.indexOf(marker)
+  const idx = clean.indexOf(STORAGE_MARKER)
   if (idx !== -1) {
-    const path = clean.slice(idx + marker.length).replace(/^\/+/, "")
-    return `${PAGES_ORIGIN}${marker}${path}`
+    const path = clean.slice(idx + STORAGE_MARKER.length).replace(/^\/+/, "")
+    return `${PAGES_ORIGIN}${STORAGE_MARKER}${path}`
   }
 
-  // Other absolute URL — pass through as-is.
-  return clean
+  // Unknown external URL — rejected: passing it through would bypass the CDN
+  // and hit the origin directly, so it is replaced with a transparent fallback.
+  return FALLBACK_IMAGE
 }
 
 /**
  * Normalizes an image value from the database to a full public URL.
  * Delegates to buildPublicImageUrl: bare paths get the Pages prefix, legacy
- * Supabase URLs are re-hosted under the Pages origin, everything else passes
- * through.
+ * Supabase URLs are re-hosted under the Pages origin, and anything that cannot
+ * be routed through the CDN is replaced with a transparent fallback.
  */
 function publicImageUrl(value: string | null | undefined): string | undefined {
   if (!value) return undefined
@@ -413,7 +422,7 @@ export async function verifyKitchenPin(pin: string): Promise<boolean> {
   }
   const { data, error } = await supabase.rpc("verify_kitchen_pin", { p_pin: pin.trim() })
   if (error) {
-    console.error("[supabase] PIN verify error:", error.message)
+    logError(error, "supabase pin-verify")
     return false
   }
   return Boolean(data)
@@ -429,7 +438,7 @@ export async function updateKitchenPin(oldPin: string, newPin: string): Promise<
   }
   const { data, error } = await supabase.rpc("update_kitchen_pin", { p_old_pin: oldPin.trim(), p_new_pin: newPin.trim() })
   if (error) {
-    console.error("[supabase] PIN update error:", error.message)
+    logError(error, "supabase pin-update")
     return false
   }
   return Boolean(data)
@@ -480,7 +489,7 @@ export async function fetchTablesSummary(): Promise<TableSummary[]> {
   if (supabase) {
     const { data: nums, error: numsError } = await supabase.rpc("list_table_numbers")
     if (numsError) {
-      console.error("[supabase] list_table_numbers error:", numsError.message)
+      logError(numsError, "supabase list-table-numbers")
     } else {
       tableNumbers = (nums ?? []) as string[]
     }
@@ -501,10 +510,12 @@ export async function fetchTableOrders(tableNumber: string): Promise<any[]> {
   if (!supabase) {
     throw new Error(GENERIC_ERROR)
   }
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from("orders")
     .select("id, created_at, table_number, customer_name, notes, payment_method, items, total, paid")
     .eq("table_number", tableNumber)
+    .gte("created_at", sevenDaysAgo)
     .order("created_at", { ascending: false })
     .limit(50)
 

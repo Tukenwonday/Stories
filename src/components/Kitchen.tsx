@@ -148,20 +148,40 @@ export default function Kitchen() {
     if (!authed || !client) return
     load()
 
+    const pendingRowsRef = { current: [] as KitchenOrder[] }
+    const flushTimerRef = { current: null as ReturnType<typeof setTimeout> | null }
+
+    const flush = () => {
+      flushTimerRef.current = null
+      if (pendingRowsRef.current.length === 0) return
+      const rows = pendingRowsRef.current
+      pendingRowsRef.current = []
+      // Group the burst into a single state update so a rush of orders only
+      // triggers one re-render. Id-dedup keeps rapid orders from stacking
+      // duplicates without ever dropping an order.
+      setOrders((prev) => {
+        const seen = new Set(prev.map((o) => o.id))
+        const fresh = rows.filter((r) => !seen.has(r.id))
+        return [...fresh, ...prev].slice(0, 50)
+      })
+      playNewOrderChime()
+    }
+
+    const schedule = () => {
+      if (flushTimerRef.current) return
+      flushTimerRef.current = setTimeout(flush, 300)
+    }
+
     const channel = client
       .channel("kitchen-orders")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders", filter: "paid=eq.false" },
         (payload) => {
-          const row = payload.new as KitchenOrder
-          // No debounce: realtime delivers each change once, so every insert is
-          // applied immediately. The id-dedup keeps rapid orders from stacking
-          // duplicates without ever dropping an order.
-          setOrders((prev) =>
-            prev.some((o) => o.id === row.id) ? prev : [row, ...prev].slice(0, 50),
-          )
-          playNewOrderChime()
+          // Batch incoming orders in a 300ms window before updating React
+          // state, so a sudden rush of orders coalesces into one render.
+          pendingRowsRef.current.push(payload.new as KitchenOrder)
+          schedule()
         },
       )
       .on(
@@ -187,6 +207,7 @@ export default function Kitchen() {
 
     return () => {
       client.removeChannel(channel)
+      if (flushTimerRef.current) clearTimeout(flushTimerRef.current)
     }
   }, [authed, load])
 

@@ -4,6 +4,7 @@ import type { Category, Lang, MenuItem } from "./types"
 import { LangContext, persistLang, storedLang } from "./lang-context"
 import { strings } from "./i18n"
 import { fetchMenu, queryKeys } from "./lib/supabase"
+import { logError } from "./lib/logger"
 import { useQuery } from "@tanstack/react-query"
 import { useTableSession } from "./hooks/useTableSession"
 import Header from "./components/Header"
@@ -57,7 +58,7 @@ export default function App() {
 
   useEffect(() => {
     if (menuError) {
-      console.error(menuError)
+      logError(menuError, "menu-query")
       setError((menuError instanceof Error ? menuError.message : String(menuError)) || strings.loadError.ar)
       setLoading(false)
     }

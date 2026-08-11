@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import type { Category, Lang, MenuItem } from "../types"
 import { strings } from "../i18n"
+import { logError } from "../lib/logger"
 
 export function useMenuState(
   menuData: { categories: Category[]; menu: MenuItem[] } | undefined,
@@ -27,7 +28,7 @@ export function useMenuState(
 
   useEffect(() => {
     if (menuError) {
-      console.error(menuError)
+      logError(menuError, "menu-query")
       setError((menuError instanceof Error ? menuError.message : String(menuError)) || strings.loadError.ar)
       setLoading(false)
     }

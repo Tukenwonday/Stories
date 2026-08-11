@@ -7,6 +7,7 @@ import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuIt
 import { useQueryClient } from "@tanstack/react-query"
 import { deleteStorageObject } from "../lib/upload"
 import { compressImage } from "../lib/images"
+import { logError } from "../lib/logger"
 import type {
   Category,
   Lang,
@@ -584,7 +585,7 @@ function ItemEditModal({
         // Clean up old storage object if image changed
         if (oldImagePath && oldImagePath !== imageToSave) {
           const del = await deleteStorageObject(oldImagePath)
-          if (!del.ok) console.error("[menu-editor] failed to delete old image:", del.error)
+          if (!del.ok) logError(del.error, "menu-editor delete-old-image")
         }
         // Revoke preview URL
         if (stagedImage) {
@@ -647,7 +648,7 @@ function ItemEditModal({
         // Delete storage asset AFTER successful DB deletion
         if (item.image) {
           const del = await deleteStorageObject(extractStoragePath(item.image))
-          if (!del.ok) console.error("[menu-editor] failed to delete image:", del.error)
+          if (!del.ok) logError(del.error, "menu-editor delete-image")
         }
         setSaveError(null)
         onDeleted()
@@ -1129,7 +1130,7 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
         queryClient.invalidateQueries({ queryKey: queryKeys.menu })
       })
       .catch((e: unknown) => {
-        console.error(e)
+        logError(e, "menu-editor load")
         setError(e instanceof Error ? e.message : String(e))
         setLoading(false)
       })
@@ -1157,7 +1158,7 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
         // Delete storage assets AFTER successful category deletion
         for (const path of imagePaths) {
           const del = await deleteStorageObject(path)
-          if (!del.ok) console.error("[menu-editor] failed to delete image:", del.error)
+          if (!del.ok) logError(del.error, "menu-editor delete-category-image")
         }
         setConfirmingDeleteCat(null)
         load()

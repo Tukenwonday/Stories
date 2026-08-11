@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import App from "./App"
 import Kitchen from "./components/Kitchen"
 import Checkout from "./components/Checkout"
+import { logError } from "./lib/logger"
 import "./index.css"
 
 const queryClient = new QueryClient({
@@ -33,7 +34,7 @@ class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error) {
-    console.error(error)
+    logError(error, "error-boundary")
   }
 
   render() {
