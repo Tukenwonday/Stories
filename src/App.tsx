@@ -168,7 +168,7 @@ export default function App() {
             <CategoryNav active={activeCat} onSelect={setActiveCat} categories={categories} />
           )}
         </div>
-        <div className="mx-auto max-w-2xl px-4 pt-4">
+        <div className="mx-auto max-w-4xl px-4 pt-4">
           <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5">
             <Search className="h-4.5 w-4.5 shrink-0 text-muted" />
             <input
@@ -187,7 +187,7 @@ export default function App() {
         </div>
 
         {/* Menu list */}
-        <main className="mx-auto max-w-2xl px-4 pb-32 pt-6">
+        <main className="mx-auto max-w-4xl px-4 pb-32 pt-6">
           <div className="mb-1 h-px w-12 bg-gold/70" />
           <h2
             className={
@@ -204,7 +204,7 @@ export default function App() {
               {strings.noItems[lang]}
             </p>
           ) : (
-            <div className="mt-2 divide-y divide-border">
+            <div className="mt-3 grid grid-cols-2 gap-4 sm:gap-5">
               {visibleItems.map((item) => (
                 <MenuItemCard key={item.id} item={item} onSelect={setSelectedItem} />
               ))}

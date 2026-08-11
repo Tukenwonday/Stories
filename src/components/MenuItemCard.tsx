@@ -1,4 +1,4 @@
-import { ChevronLeft } from "lucide-react"
+import { ImageIcon } from "lucide-react"
 import type { MenuItem } from "../types"
 import { useLang } from "../lang-context"
 import { strings } from "../i18n"
@@ -28,47 +28,48 @@ export default function MenuItemCard({
     <button
       type="button"
       onClick={() => onSelect(item)}
-      className="flex w-full items-center justify-between gap-4 py-4 text-start transition-colors active:bg-surface"
+      className="group flex w-full flex-col overflow-hidden rounded-2xl border border-gold/15 bg-surface/60 text-start transition-all active:scale-[0.98]"
     >
-      {item.image && (
-        <div className="relative shrink-0">
-          <img
-            src={buildPublicImageUrl(item.image)}
-            alt={item.title.en}
-            loading="lazy"
-            decoding="async"
-            className={
-              "h-20 w-20 rounded-lg border border-gold/25 object-cover " +
-              (reason ? "opacity-50" : "")
-            }
-          />
+      {item.image ? (
+        <img
+          src={buildPublicImageUrl(item.image)}
+          alt={item.title.en}
+          loading="lazy"
+          decoding="async"
+          className={
+            "aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-[1.04] " +
+            (reason ? "opacity-50" : "")
+          }
+        />
+      ) : (
+        <div className="grid aspect-square w-full place-items-center bg-gradient-to-br from-surface-2 to-bg">
+          <ImageIcon className="h-8 w-8 text-gold/40" />
         </div>
       )}
 
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col px-3.5 pb-3.5 pt-3">
         <h3
           className={
+            "line-clamp-2 " +
             (lang === "ar"
-              ? "text-sm font-semibold leading-relaxed"
-              : "text-[15px] font-bold uppercase tracking-wider") +
+              ? "font-arabic text-sm font-semibold leading-relaxed"
+              : "font-serif text-[15px] font-semibold uppercase tracking-wide leading-snug") +
             (reason ? " text-muted line-through decoration-gold/50" : " text-foreground")
           }
         >
           {item.title[lang]}
         </h3>
         {label && (
-          <p className={"mt-0.5 text-[10px] font-bold text-red-400 " + (lang === "ar" ? "" : "uppercase tracking-wider")}>
+          <p className={"mt-1 text-[10px] font-bold text-red-400 " + (lang === "ar" ? "" : "uppercase tracking-wider")}>
             {label}
           </p>
         )}
-      </div>
-
-      <div className="flex shrink-0 items-center gap-2.5">
-        <span className={"text-base font-bold " + (reason ? "text-muted" : "text-gold")}>
-          {item.price}{" "}
+        <div className="mt-auto flex items-baseline gap-1 pt-2">
+          <span className={"font-serif text-lg font-bold " + (reason ? "text-muted" : "text-gold")}>
+            {item.price}
+          </span>
           <span className="text-xs font-medium text-muted">{strings.currency[lang]}</span>
-        </span>
-        <ChevronLeft className="h-4 w-4 text-muted" />
+        </div>
       </div>
     </button>
   )
