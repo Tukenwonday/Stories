@@ -20,9 +20,7 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url, anonKey)
   : null
 
-// The Pages deployment acts as our CDN/proxy for Supabase storage.
-const PAGES_ORIGIN = "https://stories-7rn.pages.dev"
-const STORAGE_MARKER = "/storage/v1/object/public/menu-images/"
+const R2_PUBLIC_URL = (import.meta.env.VITE_R2_PUBLIC_URL || "").replace(/\/+$/, "")
 
 // Rendered when an image path is rejected (cannot be routed through the CDN
 // /storage/* endpoint). A transparent 1x1 GIF: invisible in the UI, never a
@@ -64,36 +62,42 @@ export const queryKeys = {
 }
 
 /**
- * Builds a public image URL for the menu-images bucket using the Pages origin.
- * Accepts a bare storage path ("dishes/abc.webp"), a legacy Supabase storage URL
- * from any project subdomain, or an already-normalized Pages storage URL. Uses a
- * strict allowlist: every returned URL is either served from the Pages-origin
- * /storage/* endpoint or is a transparent fallback. External URLs are never
- * passed through, so the browser can never hit an origin outside the CDN
- * directly. Query params/fragments are stripped so URLs stay cacheable.
+ * Builds a public image URL for the menu-images bucket using the R2 public
+ * origin. Accepts a bare storage path ("dishes/abc.webp"), a legacy
+ * Pages-origin URL, a legacy Supabase storage URL from any project subdomain,
+ * or an already-normalized R2 public URL. Uses a strict allowlist: every
+ * returned URL is either served from the R2 public origin or is a transparent
+ * fallback. External URLs are never passed through, so the browser can never
+ * hit an origin outside the CDN directly. Query params/fragments are stripped
+ * so URLs stay cacheable.
  */
 export function buildPublicImageUrl(storagePath: string): string {
+  if (!R2_PUBLIC_URL) {
+    return FALLBACK_IMAGE
+  }
   const clean = storagePath.trim().split("?")[0].split("#")[0]
 
-  // Already a Pages-origin storage URL — pass through.
-  if (clean.startsWith(PAGES_ORIGIN) && clean.includes(STORAGE_MARKER)) return clean
+  if (clean.startsWith(R2_PUBLIC_URL)) return clean
 
-  // Bare storage path (new staged uploads) — prefix with Pages origin.
   if (!/^https?:\/\//i.test(clean)) {
     const path = clean.replace(/^\/+/, "")
-    return `${PAGES_ORIGIN}${STORAGE_MARKER}${path}`
+    return `${R2_PUBLIC_URL}/${path}`
   }
 
-  // Any Supabase storage URL (any subdomain) — extract the object path and
-  // re-host it under the Pages origin.
-  const idx = clean.indexOf(STORAGE_MARKER)
+  const pagesMarker = "/storage/v1/object/public/menu-images/"
+  const idx = clean.indexOf(pagesMarker)
   if (idx !== -1) {
-    const path = clean.slice(idx + STORAGE_MARKER.length).replace(/^\/+/, "")
-    return `${PAGES_ORIGIN}${STORAGE_MARKER}${path}`
+    const path = clean.slice(idx + pagesMarker.length).replace(/^\/+/, "")
+    return `${R2_PUBLIC_URL}/${path}`
   }
 
-  // Unknown external URL — rejected: passing it through would bypass the CDN
-  // and hit the origin directly, so it is replaced with a transparent fallback.
+  const supabaseMarker = "/storage/v1/object/public/menu-images/"
+  const sIdx = clean.indexOf(supabaseMarker)
+  if (sIdx !== -1) {
+    const path = clean.slice(sIdx + supabaseMarker.length).replace(/^\/+/, "")
+    return `${R2_PUBLIC_URL}/${path}`
+  }
+
   return FALLBACK_IMAGE
 }
 

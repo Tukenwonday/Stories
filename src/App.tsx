@@ -23,10 +23,8 @@ export default function App() {
       persistLang(next)
       return next
     })
-  const [categories, setCategories] = useState<Category[]>([])
-  const [menu, setMenu] = useState<MenuItem[]>([])
+
   const [activeCat, setActiveCat] = useState("")
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
   const [cartOpen, setCartOpen] = useState(false)
@@ -38,7 +36,7 @@ export default function App() {
   const { canOrder, tableNumber, token, resolving, tokenInvalid, expired } = useTableSession()
 
   // Use React Query for menu fetching with deduplication & caching
-  const { data: menuData, error: menuError } = useQuery({
+  const { data: menuData, error: menuError, isLoading } = useQuery({
     queryKey: queryKeys.menu,
     queryFn: () => fetchMenu(false),
     staleTime: 5 * 60 * 1000,
@@ -46,21 +44,9 @@ export default function App() {
   })
 
   useEffect(() => {
-    if (menuData) {
-      setCategories(menuData.categories)
-      setMenu(menuData.menu)
-      if (menuData.categories.length > 0) {
-        setActiveCat(menuData.categories[0].id)
-      }
-      setLoading(false)
-    }
-  }, [menuData])
-
-  useEffect(() => {
     if (menuError) {
       logError(menuError, "menu-query")
       setError((menuError instanceof Error ? menuError.message : String(menuError)) || strings.loadError.ar)
-      setLoading(false)
     }
   }, [menuError])
 
@@ -72,12 +58,13 @@ export default function App() {
 
   const trimmedQuery = query.trim().toLowerCase()
   const isSearching = trimmedQuery.length > 0
+  const activeCatId = activeCat || menuData?.categories[0]?.id || ""
 
   const visibleItems = useMemo(() => {
     let list: MenuItem[]
     if (isSearching) {
       const q = query.trim()
-      list = menu.filter(
+      list = (menuData?.menu ?? []).filter(
         (i) =>
           i.title[lang].includes(q) ||
           i.title.en.toLowerCase().includes(trimmedQuery) ||
@@ -87,12 +74,12 @@ export default function App() {
           i.description.ar.includes(q),
       )
     } else {
-      list = menu.filter((i) => i.category === activeCat)
+      list = (menuData?.menu ?? []).filter((i) => i.category === activeCatId)
     }
     return list
-  }, [isSearching, trimmedQuery, query, lang, activeCat, menu])
+  }, [isSearching, trimmedQuery, query, lang, activeCatId, menuData])
 
-  const activeLabel = categories.find((c) => c.id === activeCat)?.label[lang]
+  const activeLabel = menuData?.categories.find((c) => c.id === activeCat)?.label[lang]
 
   if (tokenInvalid) {
     return (
@@ -132,7 +119,7 @@ export default function App() {
     )
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
         <div dir={dir} className="flex min-h-screen flex-col items-center justify-center bg-bg font-sans text-foreground">
@@ -165,7 +152,7 @@ export default function App() {
         <div className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
           <Header tableNumber={tableNumber} />
           {!isSearching && (
-            <CategoryNav active={activeCat} onSelect={setActiveCat} categories={categories} />
+            <CategoryNav active={activeCat} onSelect={setActiveCat} categories={menuData?.categories ?? []} />
           )}
         </div>
         <div className="mx-auto max-w-4xl px-4 pt-4">

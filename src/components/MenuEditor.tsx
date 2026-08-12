@@ -3,9 +3,9 @@ import type { ChangeEvent, ReactNode } from "react"
 import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
-import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem, supabase, buildPublicImageUrl, queryKeys } from "../lib/supabase"
+import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem, buildPublicImageUrl, queryKeys } from "../lib/supabase"
 import { useQueryClient } from "@tanstack/react-query"
-import { deleteStorageObject } from "../lib/upload"
+import { deleteStorageObject, uploadMenuItemImage } from "../lib/upload"
 import { compressImage } from "../lib/images"
 import { logError } from "../lib/logger"
 import type {
@@ -268,10 +268,22 @@ interface ItemForm {
  * e.g., "https://.../menu-images/dishes/abc.webp" → "dishes/abc.webp"
  */
 function extractStoragePath(url: string): string {
-  const marker = '/menu-images/'
-  const idx = url.indexOf(marker)
-  if (idx === -1) return url // assume it's already a relative path
-  return url.slice(idx + marker.length)
+  const r2Marker = `${import.meta.env.VITE_R2_PUBLIC_URL?.replace(/\/+$/, "") || ""}/`
+  const pagesMarker = "https://stories-7rn.pages.dev/storage/v1/object/public/menu-images/"
+  const supabaseMarker = "/storage/v1/object/public/menu-images/"
+
+  if (!/^https?:\/\//i.test(url)) return url
+
+  const r2Idx = r2Marker ? url.indexOf(r2Marker) : -1
+  if (r2Idx !== -1) return url.slice(r2Idx + r2Marker.length)
+
+  const pagesIdx = url.indexOf(pagesMarker)
+  if (pagesIdx !== -1) return url.slice(pagesIdx + pagesMarker.length)
+
+  const sbIdx = url.indexOf(supabaseMarker)
+  if (sbIdx !== -1) return url.slice(sbIdx + supabaseMarker.length)
+
+  return url
 }
 
 /* ── Section Header ── */
@@ -546,24 +558,15 @@ function ItemEditModal({
       let imageToSave = form.image.trim() || null
       let oldImagePath: string | undefined
 
-      // Upload staged image if present
       if (stagedImage) {
-        if (!supabase) {
-          setSaveError("Something went wrong. Please try again.")
+        const result = await uploadMenuItemImage(stagedImage.blob, item.id, item.image)
+        if (!result.ok) {
+          setSaveError(result.error ?? "Upload failed")
           return
         }
-        const { error } = await supabase.storage.from("menu-images").upload(stagedImage.path, stagedImage.blob, {
-          contentType: stagedImage.blob.type,
-          upsert: true,
-          cacheControl: "31536000",
-        })
-        if (error) {
-          setSaveError(error.message)
-          return
-        }
-        uploadedPath = stagedImage.path
-        imageToSave = stagedImage.path
-        oldImagePath = item.image ? extractStoragePath(item.image) : undefined
+        uploadedPath = result.path
+        imageToSave = result.path!
+        oldImagePath = result.oldPath
       }
 
       const fields = {

@@ -1,79 +1,78 @@
 import { compressImage } from "./images"
-import { supabase, buildPublicImageUrl, GENERIC_ERROR } from "./supabase"
+import { buildPublicImageUrl, GENERIC_ERROR } from "./supabase"
 
-const BUCKET = "menu-images"
+const R2_UPLOAD_URL = "/r2/upload"
+const R2_DELETE_URL = "/r2/delete"
 
 export interface UploadResult {
   ok: boolean
   url?: string
+  path?: string
   oldPath?: string
   error?: string
 }
 
-/**
- * Extracts the object path from a Supabase storage URL
- * ("https://.../storage/v1/object/public/<bucket>/<path>") or a bare path.
- * Returns null when the URL does not belong to this bucket.
- */
-function extractBucketPath(value: string, bucket: string): string | null {
-  const marker = `/${bucket}/`
+function extractBucketPath(value: string): string | null {
+  if (!/^https?:\/\//i.test(value)) {
+    return value || null
+  }
+  const marker = "/menu-images/"
   const idx = value.indexOf(marker)
   if (idx === -1) return null
   const rest = value.slice(idx + marker.length).split("?")[0].split("#")[0]
   return rest || null
 }
 
-/**
- * Compresses a photo in the browser and uploads it to the Supabase
- * `menu-images` bucket under a flat `dishes/` folder.
- * Returns the public storage URL (via CDN if configured) and the old storage path (if any) for deferred deletion.
- */
 export async function uploadMenuItemImage(
-  file: File,
+  blob: Blob | File,
   itemId: string,
   oldImage?: string,
 ): Promise<UploadResult> {
-  if (!supabase) {
-    return { ok: false, error: GENERIC_ERROR }
-  }
   try {
-    const { blob, ext } = await compressImage(file)
+    const { blob: compressedBlob, ext } = await compressImage(blob)
     const safeItem = itemId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "misc"
     const path = `dishes/${safeItem}-${Date.now()}.${ext}`
 
-    const oldPath = oldImage ? extractBucketPath(oldImage, BUCKET) : null
+    const oldPath = oldImage ? extractBucketPath(oldImage) : null
 
-    const { error: upError } = await supabase.storage.from(BUCKET).upload(path, blob, {
-      contentType: blob.type,
-      upsert: true,
-      cacheControl: "31536000",
+    const signRes = await fetch(R2_UPLOAD_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, contentType: compressedBlob.type }),
     })
-    if (upError) return { ok: false, error: upError.message }
+    const signData = await signRes.json()
+    if (!signRes.ok || !signData?.ok) {
+      return { ok: false, error: signData?.error ?? "Failed to get upload URL" }
+    }
 
-    // Use buildPublicImageUrl for CDN-aware URL (clean, no query params)
+    const uploadRes = await fetch(signData.publicUrl, {
+      method: "PUT",
+      headers: { "Content-Type": compressedBlob.type },
+      body: compressedBlob,
+    })
+    if (!uploadRes.ok) {
+      return { ok: false, error: `Upload failed: ${uploadRes.status}` }
+    }
+
     const publicUrl = buildPublicImageUrl(path)
-    return { ok: true, url: publicUrl, oldPath: oldPath ?? undefined }
+    return { ok: true, url: publicUrl, path, oldPath: oldPath ?? undefined }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
 }
 
-/**
- * Deletes a storage object by path via the delete-storage-object Edge Function.
- * The kitchen PIN is required server-side to authorize the delete.
- */
 export async function deleteStorageObject(path: string): Promise<{ ok: boolean; error?: string }> {
-  if (!supabase) {
-    return { ok: false, error: GENERIC_ERROR }
-  }
   try {
     const pin = sessionStorage.getItem("kitchenPin")
     if (!pin) return { ok: false, error: "Session expired" }
-    const { data, error } = await supabase.functions.invoke("delete-storage-object", {
-      body: { pin, path },
+
+    const res = await fetch(R2_DELETE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin, path }),
     })
-    if (error) return { ok: false, error: error.message }
-    if (!data?.ok) return { ok: false, error: data?.error ?? "Delete failed" }
+    const data = await res.json()
+    if (!res.ok) return { ok: false, error: data?.error ?? "Delete failed" }
     return { ok: true }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }

@@ -10,7 +10,7 @@ const MAX_DIMENSION = 800
  * on its longest side and re-encodes it as WebP (~35–50 KB). The compressed
  * blob is what actually gets uploaded.
  */
-export function compressImage(file: File, maxDimension = MAX_DIMENSION): Promise<CompressedImage> {
+export function compressImage(file: Blob | File, maxDimension = MAX_DIMENSION): Promise<CompressedImage> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
