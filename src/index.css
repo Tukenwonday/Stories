@@ -241,6 +241,90 @@ body {
   z-index: 1;
 }
 
+/* Order success confirmation */
+@keyframes order-success-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) rotate(-12deg);
+  }
+  58% {
+    opacity: 1;
+    transform: scale(1.12) rotate(4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes order-success-ring {
+  from {
+    opacity: 0.75;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.95);
+  }
+}
+
+@keyframes order-success-shine {
+  from {
+    transform: translateX(-130%) rotate(18deg);
+  }
+  to {
+    transform: translateX(150%) rotate(18deg);
+  }
+}
+
+@keyframes order-success-check {
+  0% {
+    stroke-dashoffset: 28;
+    transform: scale(0.92);
+  }
+  100% {
+    stroke-dashoffset: 0;
+    transform: scale(1);
+  }
+}
+
+.order-success-mark {
+  position: relative;
+  isolation: isolate;
+  animation: order-success-pop 0.58s cubic-bezier(0.22, 1, 0.36, 1) both;
+  box-shadow: 0 0 32px rgb(197 160 89 / 0.2), inset 0 1px 0 rgb(255 255 255 / 0.12);
+}
+
+.order-success-mark::before,
+.order-success-mark::after {
+  content: "";
+  position: absolute;
+  inset: -0.45rem;
+  z-index: -1;
+  border-radius: 9999px;
+  border: 1px solid rgb(197 160 89 / 0.55);
+  animation: order-success-ring 0.9s ease-out both;
+}
+
+.order-success-mark::after {
+  animation-delay: 0.16s;
+}
+
+.order-success-shine {
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.35), transparent);
+  animation: order-success-shine 0.82s ease-out 0.16s both;
+}
+
+.order-success-icon {
+  position: relative;
+  z-index: 1;
+  stroke-dasharray: 28;
+  stroke-dashoffset: 28;
+  animation: order-success-check 0.44s cubic-bezier(0.22, 1, 0.36, 1) 0.28s both;
+}
+
 /* Safe area padding for iOS notch/home indicator */
 .pb-safe {
   padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
@@ -254,7 +338,12 @@ body {
   .animate-menu-card-enter,
   .availability-toggle::before,
   .availability-toggle__thumb,
-  .availability-toggle__thumb::after {
+  .availability-toggle__thumb::after,
+  .order-success-mark,
+  .order-success-mark::before,
+  .order-success-mark::after,
+  .order-success-shine,
+  .order-success-icon {
     animation: none;
   }
 

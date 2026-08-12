@@ -93,8 +93,9 @@ export default function CartSheet({
 
         {placed ? (
           <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
-            <div className="grid h-16 w-16 place-items-center rounded-full bg-gold/15 text-gold">
-              <Check className="h-8 w-8" />
+            <div className="order-success-mark grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-gold/15 text-gold">
+              <span className="order-success-shine" aria-hidden="true" />
+              <Check className="order-success-icon h-8 w-8" />
             </div>
             <h3 className="text-xl font-bold text-foreground">{strings.orderPlaced[lang]}</h3>
             <p className="max-w-xs text-sm leading-relaxed text-muted">{strings.orderPlacedHint[lang]}</p>
