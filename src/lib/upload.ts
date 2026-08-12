@@ -29,6 +29,9 @@ export async function uploadMenuItemImage(
   oldImage?: string,
 ): Promise<UploadResult> {
   try {
+    const pin = sessionStorage.getItem("kitchenPin")
+    if (!pin) return { ok: false, error: "Session expired" }
+
     const { blob: compressedBlob, ext } = await compressImage(blob)
     const safeItem = itemId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "misc"
     const path = `dishes/${safeItem}-${Date.now()}.${ext}`
@@ -36,6 +39,7 @@ export async function uploadMenuItemImage(
     const oldPath = oldImage ? extractBucketPath(oldImage) : null
 
     const formData = new FormData()
+    formData.append("pin", pin)
     formData.append("path", path)
     formData.append("file", compressedBlob, `${path}.${ext}`)
 
