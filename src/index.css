@@ -109,10 +109,157 @@ body {
   animation: modal-backdrop 0.2s ease-out;
 }
 
+/* Customer menu loading + card entrance */
+@keyframes menu-cube-pop {
+  0%,
+  70%,
+  100% {
+    opacity: 0.45;
+    transform: translateY(0) scale(0.86) rotate(0deg);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.05) rotate(8deg);
+  }
+}
+
+@keyframes menu-card-enter {
+  from {
+    opacity: 0;
+    transform: translateX(28px) translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+}
+
+.menu-cube-loader {
+  display: grid;
+  grid-template-columns: repeat(2, 0.85rem);
+  gap: 0.42rem;
+}
+
+.menu-cube {
+  aspect-ratio: 1;
+  border-radius: 0.2rem;
+  background: linear-gradient(135deg, var(--color-gold-soft), var(--color-gold));
+  box-shadow: 0 0 18px rgb(197 160 89 / 0.24);
+  animation: menu-cube-pop 1.05s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.menu-cube:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.menu-cube:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.menu-cube:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+.animate-menu-card-enter {
+  opacity: 0;
+  animation: menu-card-enter 0.48s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation-delay: var(--menu-card-delay, 0ms);
+  will-change: transform, opacity;
+}
+
+/* Kitchen availability toggle */
+@keyframes availability-shine {
+  from {
+    transform: translateX(-120%) skewX(-16deg);
+  }
+  to {
+    transform: translateX(220%) skewX(-16deg);
+  }
+}
+
+@keyframes availability-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.14);
+  }
+}
+
+@keyframes availability-ring {
+  from {
+    opacity: 0.8;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+.availability-toggle {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+
+.availability-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.28), transparent);
+  transform: translateX(-120%) skewX(-16deg);
+}
+
+.availability-toggle:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.availability-toggle--saving::before {
+  animation: availability-shine 0.8s ease-in-out infinite;
+}
+
+.availability-toggle__thumb {
+  position: relative;
+  z-index: 1;
+  animation: availability-pop 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 8px 18px rgb(0 0 0 / 0.24);
+}
+
+.availability-toggle__thumb::after {
+  content: "";
+  position: absolute;
+  inset: -0.35rem;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+  animation: availability-ring 0.56s ease-out;
+  pointer-events: none;
+}
+
+.availability-toggle__label {
+  position: relative;
+  z-index: 1;
+}
+
 /* Safe area padding for iOS notch/home indicator */
 .pb-safe {
   padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
 }
 .pt-safe {
   padding-top: calc(env(safe-area-inset-top) + 0.5rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-cube,
+  .animate-menu-card-enter,
+  .availability-toggle::before,
+  .availability-toggle__thumb,
+  .availability-toggle__thumb::after {
+    animation: none;
+  }
+
+  .animate-menu-card-enter {
+    opacity: 1;
+    transform: none;
+  }
 }

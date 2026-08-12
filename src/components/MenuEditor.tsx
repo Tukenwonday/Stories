@@ -1116,21 +1116,23 @@ function ItemCard({
               aria-label={t("toggleAvailability")}
               title={t("toggleAvailability")}
               className={
-                "flex h-12 min-w-[7.5rem] flex-1 items-center justify-between rounded-full border px-2 transition-all disabled:cursor-not-allowed disabled:opacity-70 sm:w-32 sm:flex-none " +
+                "availability-toggle flex h-12 min-w-[7.5rem] flex-1 items-center justify-between rounded-full border px-2 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-70 sm:w-32 sm:flex-none " +
+                (availabilitySaving ? "availability-toggle--saving " : "") +
                 (isManuallyAvailable
-                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300"
-                  : "border-red-500/50 bg-red-500/15 text-red-300")
+                  ? "availability-toggle--on border-emerald-500/50 bg-emerald-500/15 text-emerald-300 shadow-[0_0_24px_rgba(16,185,129,0.10)]"
+                  : "availability-toggle--off border-red-500/50 bg-red-500/15 text-red-300 shadow-[0_0_24px_rgba(239,68,68,0.10)]")
               }
             >
               <span
+                key={`${item.id}-${isManuallyAvailable}-${availabilitySaving}`}
                 className={
-                  "grid h-8 w-8 place-items-center rounded-full transition-colors " +
+                  "availability-toggle__thumb grid h-8 w-8 place-items-center rounded-full transition-colors duration-300 " +
                   (isManuallyAvailable ? "bg-emerald-500 text-bg" : "bg-red-500 text-white")
                 }
               >
                 {availabilitySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
               </span>
-              <span className="min-w-0 flex-1 text-center text-xs font-bold">
+              <span className="availability-toggle__label min-w-0 flex-1 text-center text-xs font-bold">
                 {isManuallyAvailable ? t("itemAvailable") : t("itemUnavailable")}
               </span>
             </button>

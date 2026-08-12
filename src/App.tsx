@@ -123,8 +123,13 @@ export default function App() {
     return (
       <LangContext.Provider value={{ lang, dir, toggle: toggleLang }}>
         <div dir={dir} className="flex min-h-screen flex-col items-center justify-center bg-bg font-sans text-foreground">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-gold border-t-transparent"></div>
-          <p className="mt-4 text-sm text-muted">{strings.loadingMenu[lang]}</p>
+          <div className="menu-cube-loader" aria-hidden="true">
+            <span className="menu-cube" />
+            <span className="menu-cube" />
+            <span className="menu-cube" />
+            <span className="menu-cube" />
+          </div>
+          <p className="mt-5 text-sm font-semibold text-muted">{strings.loadingMenu[lang]}</p>
         </div>
       </LangContext.Provider>
     )
@@ -192,8 +197,13 @@ export default function App() {
             </p>
           ) : (
             <div className="mt-3 grid grid-cols-2 gap-4 sm:gap-5">
-              {visibleItems.map((item) => (
-                <MenuItemCard key={item.id} item={item} onSelect={setSelectedItem} />
+              {visibleItems.map((item, index) => (
+                <MenuItemCard
+                  key={`${activeCatId}-${query}-${item.id}`}
+                  item={item}
+                  animationIndex={index}
+                  onSelect={setSelectedItem}
+                />
               ))}
             </div>
           )}

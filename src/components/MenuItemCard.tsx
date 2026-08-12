@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react"
 import { ImageIcon } from "lucide-react"
 import type { MenuItem } from "../types"
 import { useLang } from "../lang-context"
@@ -15,20 +16,24 @@ export function unavailableLabel(reason: UnavailableReason | null, lang: Lang): 
 
 export default function MenuItemCard({
   item,
+  animationIndex = 0,
   onSelect,
 }: {
   item: MenuItem
+  animationIndex?: number
   onSelect: (item: MenuItem) => void
 }) {
   const { lang } = useLang()
   const reason = getUnavailableReason(item)
   const label = unavailableLabel(reason, lang)
+  const animationDelay = `${Math.min(animationIndex * 45, 420)}ms`
 
   return (
     <button
       type="button"
       onClick={() => onSelect(item)}
-      className="group flex w-full flex-col overflow-hidden rounded-2xl border border-gold/15 bg-surface/60 text-start transition-all active:scale-[0.98]"
+      style={{ "--menu-card-delay": animationDelay } as CSSProperties}
+      className="animate-menu-card-enter group flex w-full flex-col overflow-hidden rounded-2xl border border-gold/15 bg-surface/60 text-start transition-all active:scale-[0.98]"
     >
       {item.image ? (
         <img
