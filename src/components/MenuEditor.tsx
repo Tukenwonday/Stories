@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ChangeEvent, ReactNode } from "react"
-import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X } from "lucide-react"
+import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Search, Trash2, UploadCloud, X } from "lucide-react"
 import { useLang } from "../lang-context"
 import { kitchenStrings } from "../kitchen-i18n"
 import { deleteCategory, deleteMenuItem, fetchMenu, insertCategory, insertMenuItem, updateMenuItem, buildPublicImageUrl, queryKeys } from "../lib/supabase"
@@ -16,7 +16,6 @@ import type {
   ModifierOption,
   NotServedWindow,
 } from "../types"
-import { getUnavailableReason, type UnavailableReason } from "../lib/availability"
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
@@ -180,17 +179,6 @@ function Field({
       {children}
     </label>
   )
-}
-
-function reasonLabel(
-  reason: UnavailableReason | null,
-  fallbackKey: "itemAvailable",
-  lang: Lang,
-) {
-  if (reason === "stock") return kitchenStrings.itemUnavailable[lang]
-  if (reason === "date") return kitchenStrings.notServedToday[lang]
-  if (reason === "time") return kitchenStrings.notServedTime[lang]
-  return kitchenStrings[fallbackKey][lang]
 }
 
 function pad(h: number): string {
@@ -1034,13 +1022,6 @@ function ItemCard({
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const availabilityRequestRef = useRef(false)
 
-  const reason = getUnavailableReason({
-    isAvailable: item.isAvailable,
-    notServedWindows: item.notServedWindows,
-    unavailableDates: item.unavailableDates,
-  })
-  const status = reasonLabel(reason, "itemAvailable", lang)
-  const isOff = reason !== null
   const isManuallyAvailable = item.isAvailable !== false
 
   async function handleQuickAvailabilityToggle() {
@@ -1105,18 +1086,6 @@ function ItemCard({
                 {lang === "ar" ? item.title.en : item.title.ar}
               </p>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                {/* Status badge */}
-                <span
-                  className={
-                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold " +
-                    (isOff
-                      ? "border border-red-500/40 bg-red-500/15 text-red-300"
-                      : "border border-emerald-500/40 bg-emerald-500/15 text-emerald-300")
-                  }
-                >
-                  <span className={"inline-block h-2 w-2 rounded-full " + (isOff ? "bg-red-400" : "bg-emerald-400")} />
-                  {status}
-                </span>
                 {/* Price */}
                 <span className="text-sm font-bold text-gold">{item.price}</span>
                 {/* Modifier count */}
@@ -1200,6 +1169,7 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
   const [addingCategory, setAddingCategory] = useState(false)
   const [confirmingDeleteCat, setConfirmingDeleteCat] = useState<string | null>(null)
   const [catError, setCatError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const load = useCallback(() => {
     fetchMenu(true)
@@ -1266,11 +1236,29 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
 
   const grouped = useMemo(() => {
     if (!data) return []
-    return data.categories.map((c) => ({
-      ...c,
-      items: data.menu.filter((m) => m.category === c.id),
-    }))
-  }, [data])
+    const query = searchQuery.trim().toLowerCase()
+    return data.categories
+      .map((c) => {
+        const categoryText = `${c.label.en} ${c.label.ar}`.toLowerCase()
+        return {
+          ...c,
+          items: data.menu.filter((m) => {
+            if (m.category !== c.id) return false
+            if (!query) return true
+            const itemText = [
+              categoryText,
+              m.title.en,
+              m.title.ar,
+              m.description.en,
+              m.description.ar,
+              String(m.price),
+            ].join(" ").toLowerCase()
+            return itemText.includes(query)
+          }),
+        }
+      })
+      .filter((c) => !query || c.items.length > 0)
+  }, [data, searchQuery])
 
   if (loading) {
     return (
@@ -1342,8 +1330,32 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
+      <div className="mt-5 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5">
+        <Search className="h-4 w-4 shrink-0 text-muted" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={t("menuSearchPlaceholder")}
+          className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery("")}
+            aria-label={t("clearSearch")}
+            title={t("clearSearch")}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted transition-colors active:bg-surface-2"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       <div className="mt-5 flex flex-col gap-6">
-        {grouped.map((cat) => (
+        {grouped.length === 0 ? (
+          <p className="py-12 text-center text-sm font-semibold text-muted">{t("noMenuResults")}</p>
+        ) : grouped.map((cat) => (
           <section key={cat.id}>
             <div className="flex items-center justify-between gap-3">
               <h3 className="flex items-center gap-2 text-base font-bold uppercase tracking-widest text-foreground">

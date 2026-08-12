@@ -22,6 +22,18 @@ function isRecent(dateStr: string): boolean {
   return Date.now() - new Date(dateStr).getTime() < 60 * 60 * 1000
 }
 
+function formatAmount(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
+}
+
+function modifierUnitTotal(modifiers: Array<{ price?: number }> = []): number {
+  return modifiers.reduce((sum, modifier) => sum + Number(modifier.price || 0), 0)
+}
+
+function baseLineTotal(item: { unitPrice: number; quantity: number; modifiers?: Array<{ price?: number }> }): number {
+  return Math.max(0, (Number(item.unitPrice) - modifierUnitTotal(item.modifiers)) * item.quantity)
+}
+
 export default function Checkout() {
   const [lang, setLang] = useState<"en" | "ar">("en")
   const dir = lang === "ar" ? "rtl" : "ltr"
@@ -353,25 +365,37 @@ export default function Checkout() {
                       )}
 
                       <ul className="mt-3 divide-y divide-border">
-                        {(o.items ?? []).map((it: any, i: number) => (
-                          <li key={i} className="flex items-start justify-between gap-3 py-2">
-                            <div className="min-w-0">
-                              <span className="text-sm font-semibold text-foreground">
-                                {it.quantity}× {lang === "ar" ? (it.title_ar ?? it.title) : it.title}
-                              </span>
-                              {it.modifiers?.length > 0 && (
-                                <span className="ms-2 text-[11px] text-muted">
-                                  {it.modifiers
-                                    .map((m: any) => (lang === "ar" ? (m.option_ar ?? m.option) : m.option))
-                                    .join(" · ")}
+                        {(o.items ?? []).map((it: any, i: number) => {
+                          const baseTotal = baseLineTotal(it)
+                          return (
+                            <li key={i} className="flex items-start justify-between gap-3 py-2">
+                              <div className="min-w-0">
+                                <span className="text-sm font-semibold text-foreground">
+                                  {it.quantity}× {lang === "ar" ? (it.title_ar ?? it.title) : it.title}
                                 </span>
-                              )}
-                            </div>
-                            <span className="shrink-0 text-sm font-semibold text-foreground">
-                              {it.unitPrice * it.quantity}
-                            </span>
-                          </li>
-                        ))}
+                                {it.modifiers?.length > 0 && (
+                                  <ul className="mt-1 list-none">
+                                    {it.modifiers.map((m: any, k: number) => {
+                                      const modifierTotal = Number(m.price || 0) * it.quantity
+                                      return (
+                                        <li key={k} className="flex items-center gap-1.5 text-sm leading-relaxed text-foreground/85">
+                                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                                          <span>{lang === "ar" ? (m.option_ar ?? m.option) : m.option}</span>
+                                          {modifierTotal > 0 && (
+                                            <span className="text-gold">+{formatAmount(modifierTotal)}</span>
+                                          )}
+                                        </li>
+                                      )
+                                    })}
+                                  </ul>
+                                )}
+                              </div>
+                              <span className="shrink-0 text-sm font-semibold text-foreground">
+                                {formatAmount(baseTotal)}
+                              </span>
+                            </li>
+                          )
+                        })}
                       </ul>
 
                       {o.notes && (

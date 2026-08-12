@@ -71,6 +71,18 @@ interface KitchenOrder {
   paid: boolean
 }
 
+function formatAmount(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
+}
+
+function modifierUnitTotal(modifiers: KitchenOrderItem["modifiers"] = []): number {
+  return modifiers.reduce((sum, modifier) => sum + Number(modifier.price || 0), 0)
+}
+
+function baseLineTotal(item: KitchenOrderItem): number {
+  return Math.max(0, (Number(item.unitPrice) - modifierUnitTotal(item.modifiers)) * item.quantity)
+}
+
 export default function Kitchen() {
   const [lang, setLang] = useState<Lang>("ar")
   const dir: "ltr" | "rtl" = lang === "ar" ? "rtl" : "ltr"
@@ -419,28 +431,37 @@ export default function Kitchen() {
                           </div>
 
                           <ul className="mt-2 list-none">
-                            {o.items.map((it, j) => (
-                              <li key={j} className="flex items-start justify-between gap-3 py-1">
-                                <div className="min-w-0">
-                                  <span className="text-sm font-semibold text-foreground">
-                                    {it.quantity}× {lang === "ar" ? (it.title_ar ?? it.title) : it.title}
+                            {o.items.map((it, j) => {
+                              const baseTotal = baseLineTotal(it)
+                              return (
+                                <li key={j} className="flex items-start justify-between gap-3 py-1">
+                                  <div className="min-w-0">
+                                    <span className="text-sm font-semibold text-foreground">
+                                      {it.quantity}× {lang === "ar" ? (it.title_ar ?? it.title) : it.title}
+                                    </span>
+                                    {it.modifiers.length > 0 && (
+                                      <ul className="mt-1 list-none">
+                                        {it.modifiers.map((m, k) => {
+                                          const modifierTotal = Number(m.price || 0) * it.quantity
+                                          return (
+                                            <li key={k} className="flex items-center gap-1.5 text-sm leading-relaxed text-foreground/85">
+                                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                                              <span>{lang === "ar" ? (m.option_ar ?? m.option) : m.option}</span>
+                                              {modifierTotal > 0 && (
+                                                <span className="text-gold">+{formatAmount(modifierTotal)}</span>
+                                              )}
+                                            </li>
+                                          )
+                                        })}
+                                      </ul>
+                                    )}
+                                  </div>
+                                  <span className="shrink-0 text-sm font-semibold text-foreground">
+                                    {formatAmount(baseTotal)}
                                   </span>
-                                  {it.modifiers.length > 0 && (
-                                    <ul className="mt-1 list-none">
-                                      {it.modifiers.map((m, k) => (
-                                        <li key={k} className="flex items-center gap-1.5 text-sm leading-relaxed text-foreground/85">
-                                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-                                          {lang === "ar" ? (m.option_ar ?? m.option) : m.option}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  )}
-                                </div>
-                                <span className="shrink-0 text-sm font-semibold text-foreground">
-                                  {it.unitPrice * it.quantity}
-                                </span>
-                              </li>
-                            ))}
+                                </li>
+                              )
+                            })}
                           </ul>
 
                           {o.notes && (
