@@ -1,13 +1,17 @@
 export const onRequestPost: PagesFunction = async (context) => {
   try {
-    const R2_ACCOUNT_ID = (context.env as { R2_ACCOUNT_ID?: string }).R2_ACCOUNT_ID || ""
-    const R2_ACCESS_KEY_ID = (context.env as { R2_ACCESS_KEY_ID?: string }).R2_ACCESS_KEY_ID || ""
-    const R2_SECRET_ACCESS_KEY = (context.env as { R2_SECRET_ACCESS_KEY?: string }).R2_SECRET_ACCESS_KEY || ""
+    const R2_ACCOUNT_ID = (context.env as { R2_ACCOUNT_ID?: string }).R2_ACCOUNT_ID
+    const R2_ACCESS_KEY_ID = (context.env as { R2_ACCESS_KEY_ID?: string }).R2_ACCESS_KEY_ID
+    const R2_SECRET_ACCESS_KEY = (context.env as { R2_SECRET_ACCESS_KEY?: string }).R2_SECRET_ACCESS_KEY
     const R2_BUCKET = (context.env as { R2_BUCKET_NAME?: string }).R2_BUCKET_NAME || "menu-images"
-    const R2_PUBLIC_URL = (context.env as { R2_PUBLIC_URL?: string }).R2_PUBLIC_URL || ""
+    const R2_PUBLIC_URL = (context.env as { R2_PUBLIC_URL?: string }).R2_PUBLIC_URL
 
-    if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
-      return new Response(JSON.stringify({ error: "Server misconfigured: missing R2 credentials" }), {
+    const missing: string[] = []
+    if (!R2_ACCOUNT_ID) missing.push("R2_ACCOUNT_ID")
+    if (!R2_ACCESS_KEY_ID) missing.push("R2_ACCESS_KEY_ID")
+    if (!R2_SECRET_ACCESS_KEY) missing.push("R2_SECRET_ACCESS_KEY")
+    if (missing.length > 0) {
+      return new Response(JSON.stringify({ error: `Missing env vars: ${missing.join(", ")}` }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       })
@@ -25,7 +29,7 @@ export const onRequestPost: PagesFunction = async (context) => {
     }
 
     if (!file || !(file instanceof File)) {
-      return new Response(JSON.stringify({ error: "file is required" }), {
+      return new Response(JSON.stringify({ error: "file is required or not a File" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       })
@@ -34,10 +38,9 @@ export const onRequestPost: PagesFunction = async (context) => {
     const objectKey = path.replace(/^\/+/, "")
     const contentType = file.type || "application/octet-stream"
     const arrayBuffer = await file.arrayBuffer()
-    const body = new Uint8Array(arrayBuffer)
 
     const endpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-    const url = `${endpoint}/${R2_BUCKET}/${encodeURIComponent(objectKey)}`
+    const url = `${endpoint}/${R2_BUCKET}/${objectKey}`
 
     const credential = btoa(`${R2_ACCESS_KEY_ID}:${R2_SECRET_ACCESS_KEY}`)
 
@@ -48,12 +51,13 @@ export const onRequestPost: PagesFunction = async (context) => {
         "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
         Authorization: `Basic ${credential}`,
       },
-      body: body as any,
+      body: arrayBuffer,
     })
 
+    const responseText = await response.text()
+
     if (!response.ok) {
-      const text = await response.text()
-      return new Response(JSON.stringify({ error: `Upload failed: ${response.status} ${text}` }), {
+      return new Response(JSON.stringify({ error: `R2 upload failed`, status: response.status, detail: responseText.slice(0, 500) }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       })
