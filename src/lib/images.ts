@@ -3,12 +3,12 @@ export interface CompressedImage {
   ext: "webp" | "jpg" | "png"
 }
 
-const MAX_DIMENSION = 800
+const MAX_DIMENSION = 1200
 
 /**
  * Reads an image file in the browser, downsizes it to at most MAX_DIMENSION px
- * on its longest side and re-encodes it as WebP (~35–50 KB). The compressed
- * blob is what actually gets uploaded.
+ * on its longest side and re-encodes it as WebP. The compressed blob is what
+ * actually gets uploaded.
  */
 export function compressImage(file: Blob | File, maxDimension = MAX_DIMENSION): Promise<CompressedImage> {
   return new Promise((resolve, reject) => {
@@ -42,7 +42,7 @@ export function compressImage(file: Blob | File, maxDimension = MAX_DIMENSION): 
           resolve({ blob, ext })
         },
         "image/webp",
-        0.75,
+        0.8,
       )
     }
     img.onerror = () => {
