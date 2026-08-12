@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "include": ["/r2/upload", "/r2/delete"],
+  "include": ["/r2/upload", "/r2/delete", "/r2/export-menu"],
   "exclude": []
 }

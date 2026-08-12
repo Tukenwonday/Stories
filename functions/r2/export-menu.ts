@@ -4,11 +4,17 @@ import { signedR2Request } from "../_shared/r2-s3"
 const MENU_CACHE_CONTROL = "no-cache, must-revalidate"
 const MENU_COLUMNS = "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates"
 const CATEGORY_COLUMNS = "id,label_en,label_ar"
+const RESPONSE_HEADERS = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+}
 
 function json(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: RESPONSE_HEADERS,
   })
 }
 
@@ -26,6 +32,13 @@ function envValue(env: Record<string, unknown>, ...keys: string[]): string {
     if (typeof value === "string" && value.trim()) return value.trim()
   }
   return ""
+}
+
+export const onRequestOptions: PagesFunction = async () => {
+  return new Response(null, {
+    status: 204,
+    headers: RESPONSE_HEADERS,
+  })
 }
 
 export const onRequestPost: PagesFunction = async (context) => {
