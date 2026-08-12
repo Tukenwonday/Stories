@@ -1,3 +1,7 @@
+import { signedR2Request } from "../_shared/r2-s3"
+
+const CACHE_CONTROL = "public, max-age=31536000, s-maxage=31536000, immutable"
+
 export const onRequestPost: PagesFunction = async (context) => {
   try {
     const R2_ACCOUNT_ID = (context.env as { R2_ACCOUNT_ID?: string }).R2_ACCOUNT_ID
@@ -39,19 +43,17 @@ export const onRequestPost: PagesFunction = async (context) => {
     const contentType = file.type || "application/octet-stream"
     const arrayBuffer = await file.arrayBuffer()
 
-    const endpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-    const url = `${endpoint}/${R2_BUCKET}/${objectKey}`
-
-    const credential = btoa(`${R2_ACCESS_KEY_ID}:${R2_SECRET_ACCESS_KEY}`)
-
-    const response = await fetch(url, {
+    const response = await signedR2Request({
+      accountId: R2_ACCOUNT_ID,
+      accessKeyId: R2_ACCESS_KEY_ID,
+      secretAccessKey: R2_SECRET_ACCESS_KEY,
+      bucket: R2_BUCKET,
+    }, {
       method: "PUT",
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
-        Authorization: `Basic ${credential}`,
-      },
+      key: objectKey,
       body: arrayBuffer,
+      contentType,
+      cacheControl: CACHE_CONTROL,
     })
 
     const responseText = await response.text()
@@ -63,7 +65,7 @@ export const onRequestPost: PagesFunction = async (context) => {
       })
     }
 
-    const publicUrl = `${R2_PUBLIC_URL.replace(/\/+$/, "")}/${objectKey}`
+    const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL.replace(/\/+$/, "")}/${objectKey}` : undefined
     return new Response(JSON.stringify({ ok: true, publicUrl, path: objectKey }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

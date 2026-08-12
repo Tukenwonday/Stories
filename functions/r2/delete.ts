@@ -1,3 +1,5 @@
+import { signedR2Request } from "../_shared/r2-s3"
+
 export const onRequestPost: PagesFunction = async (context) => {
   try {
     const { pin, path: key } = (await context.request.json()) as { pin: string; path: string }
@@ -16,8 +18,14 @@ export const onRequestPost: PagesFunction = async (context) => {
     const R2_SECRET_ACCESS_KEY = (context.env as { R2_SECRET_ACCESS_KEY?: string }).R2_SECRET_ACCESS_KEY || ""
     const R2_BUCKET = (context.env as { R2_BUCKET_NAME?: string }).R2_BUCKET_NAME || "menu-images"
 
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+    const missing: string[] = []
+    if (!SUPABASE_URL) missing.push("SUPABASE_URL")
+    if (!SUPABASE_ANON_KEY) missing.push("SUPABASE_ANON_KEY")
+    if (!R2_ACCOUNT_ID) missing.push("R2_ACCOUNT_ID")
+    if (!R2_ACCESS_KEY_ID) missing.push("R2_ACCESS_KEY_ID")
+    if (!R2_SECRET_ACCESS_KEY) missing.push("R2_SECRET_ACCESS_KEY")
+    if (missing.length > 0) {
+      return new Response(JSON.stringify({ error: `Missing env vars: ${missing.join(", ")}` }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       })
@@ -42,16 +50,14 @@ export const onRequestPost: PagesFunction = async (context) => {
     }
 
     const objectKey = key.replace(/^\/+/, "")
-    const endpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-    const url = `${endpoint}/${R2_BUCKET}/${encodeURIComponent(objectKey)}`
-
-    const credential = btoa(`${R2_ACCESS_KEY_ID}:${R2_SECRET_ACCESS_KEY}`)
-
-    const response = await fetch(url, {
+    const response = await signedR2Request({
+      accountId: R2_ACCOUNT_ID,
+      accessKeyId: R2_ACCESS_KEY_ID,
+      secretAccessKey: R2_SECRET_ACCESS_KEY,
+      bucket: R2_BUCKET,
+    }, {
       method: "DELETE",
-      headers: {
-        Authorization: `Basic ${credential}`,
-      },
+      key: objectKey,
     })
 
     if (!response.ok && response.status !== 204) {
