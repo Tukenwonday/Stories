@@ -18,6 +18,10 @@ import type {
 } from "../types"
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
+const HOUR_GROUPS = [
+  { label: "hoursMorning", hours: HOURS.slice(0, 12) },
+  { label: "hoursAfternoon", hours: HOURS.slice(12) },
+] as const
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10)
@@ -192,6 +196,14 @@ function Field({
 
 function pad(h: number): string {
   return String(h).padStart(2, "0")
+}
+
+function hourRangeLabel(hour: number): string {
+  return `${pad(hour)}:00-${pad((hour + 1) % 24)}:00`
+}
+
+function windowLabel(window: NotServedWindow): string {
+  return `${window.from.slice(0, 5)}-${window.to.slice(0, 5)}`
 }
 
 function toHour(t: string): number | null {
@@ -527,7 +539,9 @@ function ItemEditModal({
   function toggleHour(h: number) {
     setForm((f) => ({
       ...f,
-      hours: f.hours.includes(h) ? f.hours.filter((x) => x !== h) : [...f.hours, h],
+      hours: f.hours.includes(h)
+        ? f.hours.filter((x) => x !== h)
+        : [...f.hours, h].sort((a, b) => a - b),
     }))
   }
 
@@ -861,60 +875,105 @@ function ItemEditModal({
 
             {/* Time windows */}
             <Field label={t("timeWindowsLabel")} full>
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <span className="text-sm leading-relaxed text-muted">{t("notAvailableHint")}</span>
-                <div className="flex gap-2">
+              <div
+                className={
+                  "mb-4 rounded-2xl border px-4 py-3 " +
+                  (windows.length === 0
+                    ? "border-emerald-500/40 bg-emerald-500/10"
+                    : "border-red-500/40 bg-red-500/10")
+                }
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p
+                      className={
+                        "text-sm font-extrabold " +
+                        (windows.length === 0 ? "text-emerald-300" : "text-red-300")
+                      }
+                    >
+                      {windows.length === 0 ? t("hoursAvailableAllDay") : t("hoursBlockedSummary")}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted">{t("notAvailableHint")}</p>
+                  </div>
+                  {windows.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {windows.map((w, i) => (
+                        <span
+                          key={i}
+                          className="rounded-full border border-red-500/40 bg-red-500/15 px-2.5 py-1 text-xs font-bold text-red-200"
+                        >
+                          {windowLabel(w)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-border bg-surface-2/40 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-muted">
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+                      {t("itemUnavailable")}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-full bg-surface" />
+                      {t("itemAvailable")}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => patch({ hours: [] })}
-                    className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-muted transition-colors active:bg-surface-2"
+                    className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-300 transition-colors active:bg-emerald-500/20"
                   >
                     {t("hoursReset")}
                   </button>
                   <button
                     type="button"
                     onClick={() => patch({ hours: [...HOURS] })}
-                    className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-muted transition-colors active:bg-surface-2"
+                    className="rounded-full border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-bold text-red-300 transition-colors active:bg-red-500/20"
                   >
                     {t("hoursAllDay")}
                   </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
-                {HOURS.map((h) => {
-                  const off = form.hours.includes(h)
-                  return (
-                    <button
-                      key={h}
-                      type="button"
-                      onClick={() => toggleHour(h)}
-                      aria-pressed={off}
-                      className={
-                        "rounded-xl border py-3 text-sm font-bold transition-colors " +
-                        (off
-                          ? "border-red-500/60 bg-red-500/20 text-red-300"
-                          : "border-border bg-surface-2 text-muted active:bg-surface")
-                      }
-                    >
-                      {pad(h)}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {windows.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {windows.map((w, i) => (
-                    <span
-                      key={i}
-                      className="flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-sm font-medium text-red-300"
-                    >
-                      {w.from.slice(0, 5)} – {w.to.slice(0, 5)}
-                    </span>
+                <div className="space-y-4">
+                  {HOUR_GROUPS.map((group) => (
+                    <div key={group.label}>
+                      <p className="mb-2 text-xs font-extrabold uppercase tracking-widest text-muted">
+                        {t(group.label)}
+                      </p>
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6" dir="ltr">
+                        {group.hours.map((h) => {
+                          const off = form.hours.includes(h)
+                          return (
+                            <button
+                              key={h}
+                              type="button"
+                              onClick={() => toggleHour(h)}
+                              aria-pressed={off}
+                              className={
+                                "flex min-h-14 flex-col items-center justify-center rounded-xl border px-2 py-2 text-center transition-all active:scale-[0.98] " +
+                                (off
+                                  ? "border-red-500/70 bg-red-500/20 text-red-200 shadow-[0_0_18px_rgba(239,68,68,0.12)]"
+                                  : "border-border bg-surface text-muted active:border-emerald-500/50 active:bg-emerald-500/10")
+                              }
+                            >
+                              <span className="text-sm font-extrabold">{pad(h)}</span>
+                              <span className="mt-0.5 text-[10px] font-semibold opacity-75">
+                                {hourRangeLabel(h)}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
                   ))}
                 </div>
-              )}
+              </div>
             </Field>
           </section>
 
