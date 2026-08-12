@@ -1,17 +1,7 @@
-import { signS3Request } from "../lib/s3-signing"
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 
 export const onRequestPost: PagesFunction = async (context) => {
   try {
-    const { path, contentType } = (await context.request.json()) as { path: string; contentType: string }
-
-    if (!path || typeof path !== "string") {
-      return new Response(JSON.stringify({ error: "path is required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      })
-    }
-
-    const blob = await context.request.blob()
     const R2_ACCOUNT_ID = (context.env as { R2_ACCOUNT_ID?: string }).R2_ACCOUNT_ID || ""
     const R2_ACCESS_KEY_ID = (context.env as { R2_ACCESS_KEY_ID?: string }).R2_ACCESS_KEY_ID || ""
     const R2_SECRET_ACCESS_KEY = (context.env as { R2_SECRET_ACCESS_KEY?: string }).R2_SECRET_ACCESS_KEY || ""
@@ -25,30 +15,45 @@ export const onRequestPost: PagesFunction = async (context) => {
       })
     }
 
-    const objectKey = path.replace(/^\/+/, "")
-    const endpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-    const url = `${endpoint}/${R2_BUCKET}/${encodeURIComponent(objectKey)}`
+    const formData = await context.request.formData()
+    const path = formData.get("path")
+    const file = formData.get("file")
 
-    const bodyBuffer = await blob.arrayBuffer()
-    const signed = await signS3Request(
-      "PUT",
-      url,
-      {
-        "Content-Type": contentType || blob.type || "application/octet-stream",
-        "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
-      },
-      bodyBuffer,
-      R2_ACCESS_KEY_ID,
-      R2_SECRET_ACCESS_KEY,
-    )
-
-    const response = await fetch(signed)
-    if (!response.ok) {
-      return new Response(JSON.stringify({ error: `Upload failed: ${response.status}` }), {
-        status: 500,
+    if (!path || typeof path !== "string") {
+      return new Response(JSON.stringify({ error: "path is required" }), {
+        status: 400,
         headers: { "Content-Type": "application/json" },
       })
     }
+
+    if (!file || !(file instanceof File)) {
+      return new Response(JSON.stringify({ error: "file is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    const objectKey = path.replace(/^\/+/, "")
+    const contentType = file.type || "application/octet-stream"
+
+    const r2 = new S3Client({
+      region: "auto",
+      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY,
+      },
+    })
+
+    await r2.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: objectKey,
+        Body: file,
+        ContentType: contentType,
+        CacheControl: "public, max-age=31536000, s-maxage=31536000, immutable",
+      }),
+    )
 
     const publicUrl = `${R2_PUBLIC_URL.replace(/\/+$/, "")}/${objectKey}`
     return new Response(JSON.stringify({ ok: true, publicUrl, path: objectKey }), {

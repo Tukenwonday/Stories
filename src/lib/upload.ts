@@ -35,23 +35,17 @@ export async function uploadMenuItemImage(
 
     const oldPath = oldImage ? extractBucketPath(oldImage) : null
 
-    const signRes = await fetch(R2_UPLOAD_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path, contentType: compressedBlob.type }),
-    })
-    const signData = await signRes.json()
-    if (!signRes.ok || !signData?.ok) {
-      return { ok: false, error: signData?.error ?? "Failed to get upload URL" }
-    }
+    const formData = new FormData()
+    formData.append("path", path)
+    formData.append("file", compressedBlob, `${path}.${ext}`)
 
-    const uploadRes = await fetch(signData.publicUrl, {
-      method: "PUT",
-      headers: { "Content-Type": compressedBlob.type },
-      body: compressedBlob,
+    const uploadRes = await fetch(R2_UPLOAD_URL, {
+      method: "POST",
+      body: formData,
     })
-    if (!uploadRes.ok) {
-      return { ok: false, error: `Upload failed: ${uploadRes.status}` }
+    const uploadData = await uploadRes.json()
+    if (!uploadRes.ok || !uploadData?.ok) {
+      return { ok: false, error: uploadData?.error ?? `Upload failed: ${uploadRes.status}` }
     }
 
     const publicUrl = buildPublicImageUrl(path)

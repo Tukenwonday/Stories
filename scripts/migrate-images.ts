@@ -53,27 +53,40 @@ const CACHE_CONTROL = "public, max-age=31536000, s-maxage=31536000, immutable"
 
 async function listSupabaseObjects(): Promise<string[]> {
   const keys: string[] = []
-  let pageSize = 1000
-  let offset = 0
 
-  while (true) {
-    const { data, error } = await supabase.storage.from(BUCKET).list("", {
-      recursive: true,
-      limit: pageSize,
-      offset,
-    })
+  async function listFolder(prefix = ""): Promise<void> {
+    let pageSize = 1000
+    let offset = 0
 
-    if (error) {
-      fail(`Failed to list Supabase objects: ${error.message}`)
+    while (true) {
+      const { data, error } = await supabase.storage.from(BUCKET).list(prefix, {
+        limit: pageSize,
+        offset,
+      })
+
+      if (error) {
+        fail(`Failed to list Supabase objects at "${prefix}": ${error.message}`)
+      }
+
+      const entries = data ?? []
+      const files = entries.filter((o: any) => o.id != null)
+      const folders = entries.filter((o: any) => o.id == null)
+
+      for (const f of files) {
+        keys.push(prefix ? `${prefix}/${f.name}` : f.name)
+      }
+
+      for (const folder of folders) {
+        const folderPrefix = prefix ? `${prefix}/${folder.name}` : folder.name
+        await listFolder(folderPrefix)
+      }
+
+      if (files.length + folders.length < pageSize) break
+      offset += pageSize
     }
-
-    const batch = (data ?? []).map((o) => o.name)
-    keys.push(...batch)
-
-    if (batch.length < pageSize) break
-    offset += pageSize
   }
 
+  await listFolder("")
   return keys
 }
 
