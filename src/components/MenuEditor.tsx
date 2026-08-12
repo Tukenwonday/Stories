@@ -359,8 +359,6 @@ function ModifiersEditor({
           {t("addQuestion")}
         </button>
       </div>
-      <p className="text-sm leading-relaxed text-muted">{t("modifiersHint")}</p>
-
       {groups.map((g, gi) => (
         <div key={g.id} className="rounded-2xl border border-border bg-surface-2/60 p-4">
           <div className="flex items-center justify-between gap-2">
@@ -477,7 +475,6 @@ function ModifiersEditor({
         </div>
       ))}
 
-      {groups.length === 0 && <p className="text-sm text-muted py-2">{t("noQuestions")}</p>}
     </div>
   )
 }
@@ -821,7 +818,6 @@ function ItemEditModal({
                       )}
                       {uploading ? t("uploading") : t("uploadPhoto")}
                     </label>
-                    <p className="text-xs leading-relaxed text-muted">{t("uploadHint")}</p>
                     {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
                   </div>
                 </div>
