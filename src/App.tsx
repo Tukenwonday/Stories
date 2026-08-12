@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Search, X } from "lucide-react"
 import type { Category, Lang, MenuItem } from "./types"
 import { LangContext, persistLang, storedLang } from "./lang-context"
@@ -29,6 +29,7 @@ export default function App() {
   const [query, setQuery] = useState("")
   const [cartOpen, setCartOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
+  const menuTopRef = useRef<HTMLDivElement>(null)
 
   // NFC / QR table session: ordering unlocks only for customers who tapped
   // their table's NFC card (or QR) and persists for 2h. Everyone else browses
@@ -80,6 +81,14 @@ export default function App() {
   }, [isSearching, trimmedQuery, query, lang, activeCatId, menuData])
 
   const activeLabel = menuData?.categories.find((c) => c.id === activeCatId)?.label[lang]
+
+  useEffect(() => {
+    if (!menuData) return
+    menuTopRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    })
+  }, [activeCatId, isSearching, menuData])
 
   if (tokenInvalid) {
     return (
@@ -180,6 +189,7 @@ export default function App() {
 
         {/* Menu list */}
         <main className="mx-auto max-w-4xl px-4 pb-32 pt-6">
+          <div ref={menuTopRef} className="scroll-mt-36" />
           <div className="mb-1 h-px w-12 bg-gold/70" />
           <h2
             className={
