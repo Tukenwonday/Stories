@@ -31,6 +31,15 @@ function slugify(s: string): string {
     .replace(/^-+|-+$/g, "")
 }
 
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 /* ── Popup Modal for creating a new category ── */
 function CategoryAddModal({
   onClose,
@@ -1246,28 +1255,30 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
 
   const grouped = useMemo(() => {
     if (!data) return []
-    const query = searchQuery.trim().toLowerCase()
+    const queryWords = normalizeSearchText(searchQuery).split(" ").filter(Boolean)
     return data.categories
       .map((c) => {
-        const categoryText = `${c.label.en} ${c.label.ar}`.toLowerCase()
         return {
           ...c,
           items: data.menu.filter((m) => {
             if (m.category !== c.id) return false
-            if (!query) return true
+            if (queryWords.length === 0) return true
             const itemText = [
-              categoryText,
+              m.id,
               m.title.en,
               m.title.ar,
               m.description.en,
               m.description.ar,
+              m.tag?.en ?? "",
+              m.tag?.ar ?? "",
               String(m.price),
-            ].join(" ").toLowerCase()
-            return itemText.includes(query)
+            ].join(" ")
+            const normalizedItemText = normalizeSearchText(itemText)
+            return queryWords.every((word) => normalizedItemText.includes(word))
           }),
         }
       })
-      .filter((c) => !query || c.items.length > 0)
+      .filter((c) => queryWords.length === 0 || c.items.length > 0)
   }, [data, searchQuery])
 
   if (loading) {
