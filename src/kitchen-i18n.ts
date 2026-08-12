@@ -91,6 +91,7 @@ export const kitchenStrings = {
   dangerZone: { en: "Danger Zone", ar: "منطقة الخطر" },
   close: { en: "Close", ar: "إغلاق" },
   toggleAvailability: { en: "Toggle Availability", ar: "تبديل التوفر" },
+  availabilityUpdateFailed: { en: "Failed to update availability", ar: "فشل تحديث التوفر" },
   questionsAndOptions: { en: "Questions & Options", ar: "الأسئلة والخيارات" },
   uploadPhoto: { en: "Upload photo", ar: "رفع صورة" },
   uploading: { en: "Uploading…", ar: "جارٍ الرفع…" },

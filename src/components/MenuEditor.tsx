@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ChangeEvent, ReactNode } from "react"
 import { ArrowLeft, Check, Edit3, Loader2, Plus, Power, Trash2, UploadCloud, X } from "lucide-react"
 import { useLang } from "../lang-context"
@@ -833,37 +833,38 @@ function ItemEditModal({
           <section>
             <SectionHeader title={t("availability")} />
 
-            {/* Big availability toggle */}
-            <button
-              type="button"
-              onClick={() => patch({ isAvailable: !form.isAvailable })}
-              className={
-                "mb-5 flex w-full items-center justify-between rounded-2xl border-2 px-5 py-4 text-left transition-colors " +
-                (form.isAvailable
-                  ? "border-emerald-500/50 bg-emerald-500/10"
-                  : "border-red-500/50 bg-red-500/10")
-              }
-            >
-              <div className="flex items-center gap-3">
-                <Power className={"h-6 w-6 " + (form.isAvailable ? "text-emerald-400" : "text-red-400")} />
-                <span className={"text-base font-bold " + (form.isAvailable ? "text-emerald-300" : "text-red-300")}>
-                  {form.isAvailable ? t("itemAvailable") : t("itemUnavailable")}
-                </span>
-              </div>
-              <div
+            {mode === "create" && (
+              <button
+                type="button"
+                onClick={() => patch({ isAvailable: !form.isAvailable })}
                 className={
-                  "relative h-8 w-14 rounded-full transition-colors " +
-                  (form.isAvailable ? "bg-emerald-500" : "bg-red-500/60")
+                  "mb-5 flex w-full items-center justify-between rounded-2xl border-2 px-5 py-4 text-left transition-colors " +
+                  (form.isAvailable
+                    ? "border-emerald-500/50 bg-emerald-500/10"
+                    : "border-red-500/50 bg-red-500/10")
                 }
               >
+                <div className="flex items-center gap-3">
+                  <Power className={"h-6 w-6 " + (form.isAvailable ? "text-emerald-400" : "text-red-400")} />
+                  <span className={"text-base font-bold " + (form.isAvailable ? "text-emerald-300" : "text-red-300")}>
+                    {form.isAvailable ? t("itemAvailable") : t("itemUnavailable")}
+                  </span>
+                </div>
                 <div
                   className={
-                    "absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all " +
-                    (form.isAvailable ? "left-7" : "left-1")
+                    "relative h-8 w-14 rounded-full transition-colors " +
+                    (form.isAvailable ? "bg-emerald-500" : "bg-red-500/60")
                   }
-                />
-              </div>
-            </button>
+                >
+                  <div
+                    className={
+                      "absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all " +
+                      (form.isAvailable ? "left-7" : "left-1")
+                    }
+                  />
+                </div>
+              </button>
+            )}
 
             {/* Time windows */}
             <Field label={t("timeWindowsLabel")} full>
@@ -1021,80 +1022,160 @@ function ItemEditModal({
 function ItemCard({
   item,
   onDeleted,
+  onAvailabilityUpdated,
   categories,
 }: {
   item: MenuItem
   onDeleted: () => void
+  onAvailabilityUpdated: (id: string, isAvailable: boolean) => void
   categories: Category[]
 }) {
   const { lang } = useLang()
   const t = (k: keyof typeof kitchenStrings) => kitchenStrings[k][lang]
+  const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
+  const [availabilitySaving, setAvailabilitySaving] = useState(false)
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null)
+  const availabilityRequestRef = useRef(false)
 
   const reason = getUnavailableReason({
     isAvailable: item.isAvailable,
     notServedWindows: item.notServedWindows,
+    unavailableDates: item.unavailableDates,
   })
   const status = reasonLabel(reason, "itemAvailable", lang)
   const isOff = reason !== null
+  const isManuallyAvailable = item.isAvailable !== false
+
+  async function handleQuickAvailabilityToggle() {
+    if (availabilityRequestRef.current) return
+    const nextAvailable = !isManuallyAvailable
+    availabilityRequestRef.current = true
+    setAvailabilitySaving(true)
+    setAvailabilityError(null)
+    try {
+      const pin = sessionStorage.getItem("kitchenPin")
+      if (!pin) {
+        setAvailabilityError("Session expired. Please log in again.")
+        return
+      }
+      const res = await updateMenuItem(pin, item.id, {
+        title_en: item.title.en,
+        title_ar: item.title.ar,
+        description_en: item.description.en,
+        description_ar: item.description.ar,
+        price: item.price,
+        image: item.image ?? null,
+        not_served_windows: item.notServedWindows ?? [],
+        is_available: nextAvailable,
+        modifiers: item.modifiers ?? [],
+      })
+      if (!res.ok) {
+        setAvailabilityError(res.error ?? t("availabilityUpdateFailed"))
+        return
+      }
+      onAvailabilityUpdated(item.id, nextAvailable)
+      queryClient.invalidateQueries({ queryKey: queryKeys.menu })
+    } catch {
+      setAvailabilityError(t("availabilityUpdateFailed"))
+    } finally {
+      availabilityRequestRef.current = false
+      setAvailabilitySaving(false)
+    }
+  }
 
   return (
     <>
       <div className="px-5 py-4">
-        <div className="flex items-center gap-4">
-          {/* Thumbnail */}
-          {item.image && (
-            <img
-              src={buildPublicImageUrl(item.image)}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="h-16 w-16 shrink-0 rounded-2xl border border-gold/25 object-cover"
-            />
-          )}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
+            {/* Thumbnail */}
+            {item.image && (
+              <img
+                src={buildPublicImageUrl(item.image)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="h-16 w-16 shrink-0 rounded-2xl border border-gold/25 object-cover"
+              />
+            )}
 
-          {/* Info */}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-bold text-foreground">
-              {item.title[lang]}
-            </p>
-            <p className="mt-0.5 truncate text-sm text-muted">
-              {lang === "ar" ? item.title.en : item.title.ar}
-            </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              {/* Status badge */}
-              <span
-                className={
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold " +
-                  (isOff
-                    ? "border border-red-500/40 bg-red-500/15 text-red-300"
-                    : "border border-emerald-500/40 bg-emerald-500/15 text-emerald-300")
-                }
-              >
-                <span className={"inline-block h-2 w-2 rounded-full " + (isOff ? "bg-red-400" : "bg-emerald-400")} />
-                {status}
-              </span>
-              {/* Price */}
-              <span className="text-sm font-bold text-gold">{item.price}</span>
-              {/* Modifier count */}
-              {item.modifiers && item.modifiers.length > 0 && (
-                <span className="text-xs font-medium text-muted">
-                  · {item.modifiers.length} mod
+            {/* Info */}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-base font-bold text-foreground">
+                {item.title[lang]}
+              </p>
+              <p className="mt-0.5 truncate text-sm text-muted">
+                {lang === "ar" ? item.title.en : item.title.ar}
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                {/* Status badge */}
+                <span
+                  className={
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold " +
+                    (isOff
+                      ? "border border-red-500/40 bg-red-500/15 text-red-300"
+                      : "border border-emerald-500/40 bg-emerald-500/15 text-emerald-300")
+                  }
+                >
+                  <span className={"inline-block h-2 w-2 rounded-full " + (isOff ? "bg-red-400" : "bg-emerald-400")} />
+                  {status}
                 </span>
-              )}
+                {/* Price */}
+                <span className="text-sm font-bold text-gold">{item.price}</span>
+                {/* Modifier count */}
+                {item.modifiers && item.modifiers.length > 0 && (
+                  <span className="text-xs font-medium text-muted">
+                    · {item.modifiers.length} mod
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Edit button */}
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
-            className="flex shrink-0 items-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-bold text-bg transition-all active:scale-[0.97] active:bg-gold/90"
-          >
-            <Edit3 className="h-4 w-4" />
-            {t("editItem")}
-          </button>
+          <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+            <button
+              type="button"
+              onClick={handleQuickAvailabilityToggle}
+              disabled={availabilitySaving}
+              aria-pressed={isManuallyAvailable}
+              aria-label={t("toggleAvailability")}
+              title={t("toggleAvailability")}
+              className={
+                "flex h-12 min-w-[7.5rem] flex-1 items-center justify-between rounded-full border px-2 transition-all disabled:cursor-not-allowed disabled:opacity-70 sm:w-32 sm:flex-none " +
+                (isManuallyAvailable
+                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300"
+                  : "border-red-500/50 bg-red-500/15 text-red-300")
+              }
+            >
+              <span
+                className={
+                  "grid h-8 w-8 place-items-center rounded-full transition-colors " +
+                  (isManuallyAvailable ? "bg-emerald-500 text-bg" : "bg-red-500 text-white")
+                }
+              >
+                {availabilitySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
+              </span>
+              <span className="min-w-0 flex-1 text-center text-xs font-bold">
+                {isManuallyAvailable ? t("itemAvailable") : t("itemUnavailable")}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-gold px-5 text-sm font-bold text-bg transition-all active:scale-[0.97] active:bg-gold/90 sm:flex-none"
+            >
+              <Edit3 className="h-4 w-4" />
+              {t("editItem")}
+            </button>
+          </div>
         </div>
+        {availabilityError && (
+          <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400">
+            {availabilityError}
+          </p>
+        )}
       </div>
 
       {/* Edit Modal */}
@@ -1174,6 +1255,18 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
       setConfirmingDeleteCat(null)
     }
   }
+
+  const handleAvailabilityUpdated = useCallback((id: string, isAvailable: boolean) => {
+    setData((current) => {
+      if (!current) return current
+      return {
+        ...current,
+        menu: current.menu.map((item) =>
+          item.id === id ? { ...item, isAvailable } : item,
+        ),
+      }
+    })
+  }, [])
 
   const grouped = useMemo(() => {
     if (!data) return []
@@ -1298,7 +1391,13 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
             </div>
             <div className="mt-3 divide-y divide-border rounded-3xl border border-border bg-surface/40">
               {cat.items.map((item) => (
-                <ItemCard key={item.id} item={item} onDeleted={load} categories={data.categories} />
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  onDeleted={load}
+                  onAvailabilityUpdated={handleAvailabilityUpdated}
+                  categories={data.categories}
+                />
               ))}
             </div>
           </section>
