@@ -74,6 +74,12 @@ export interface MenuData {
   menu: MenuItem[]
 }
 
+export interface MutationResult {
+  ok: boolean
+  error?: string
+  warning?: string
+}
+
 type FetchMenuOptions = boolean | {
   includeUnavailable?: boolean
   lang?: Lang
@@ -153,6 +159,123 @@ function publicImageUrl(value: string | null | undefined): string | undefined {
   return buildPublicImageUrl(value)
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object")
+}
+
+function normalizePublishedMenu(data: unknown): MenuData {
+  if (!isRecord(data) || !Array.isArray(data.categories) || !Array.isArray(data.menu)) {
+    throw new Error(GENERIC_ERROR)
+  }
+
+  const categories: Category[] = data.categories
+    .filter(isRecord)
+    .map((row) => {
+      const label = isRecord(row.label) ? row.label : {}
+      return {
+        id: String(row.id ?? ""),
+        label: {
+          en: String(label.en ?? ""),
+          ar: String(label.ar ?? ""),
+        },
+      }
+    })
+    .filter((row) => row.id)
+
+  const menu: MenuItem[] = data.menu
+    .filter(isRecord)
+    .filter((row) => row.isAvailable !== false)
+    .map((row) => {
+      const title = isRecord(row.title) ? row.title : {}
+      const description = isRecord(row.description) ? row.description : {}
+      const tag = isRecord(row.tag) ? row.tag : null
+      const notServedWindows = Array.isArray(row.notServedWindows)
+        ? row.notServedWindows.filter(isRecord).map((w) => ({
+            from: String(w.from ?? "").slice(0, 5),
+            to: String(w.to ?? "").slice(0, 5),
+          })).filter((w) => w.from && w.to)
+        : []
+      const unavailableDates = Array.isArray(row.unavailableDates)
+        ? row.unavailableDates.map(String)
+        : []
+
+      return {
+        id: String(row.id ?? ""),
+        category: String(row.category ?? ""),
+        title: {
+          en: String(title.en ?? ""),
+          ar: String(title.ar ?? ""),
+        },
+        description: {
+          en: String(description.en ?? ""),
+          ar: String(description.ar ?? ""),
+        },
+        price: Number(row.price ?? 0),
+        image: typeof row.image === "string" ? publicImageUrl(row.image) : undefined,
+        tag: tag ? { en: String(tag.en ?? ""), ar: String(tag.ar ?? "") } : undefined,
+        modifiers: Array.isArray(row.modifiers) ? row.modifiers as ModifierGroup[] : [],
+        notServedWindows,
+        isAvailable: row.isAvailable !== false,
+        unavailableDates,
+      }
+    })
+    .filter((row) => row.id && row.category)
+
+  return { categories, menu }
+}
+
+async function fetchPublishedMenu(): Promise<MenuData> {
+  if (!R2_PUBLIC_URL) {
+    throw new Error(GENERIC_ERROR)
+  }
+
+  const response = await fetch(`${R2_PUBLIC_URL}/menu.json`, {
+    cache: "no-cache",
+    headers: { Accept: "application/json" },
+  })
+  if (!response.ok) {
+    throw new Error(GENERIC_ERROR)
+  }
+
+  return normalizePublishedMenu(await response.json())
+}
+
+function dispatchMenuPublishWarning(message: string | null) {
+  if (typeof window === "undefined") return
+  window.dispatchEvent(new CustomEvent("menu-export-warning", { detail: message }))
+}
+
+export async function publishMenuJson(pin: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const response = await fetch("/r2/export-menu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin }),
+    })
+    const data = await response.json().catch(() => null)
+    if (!response.ok || !data?.ok) {
+      const error = data?.error ?? `Menu publish failed: ${response.status}`
+      dispatchMenuPublishWarning(error)
+      return { ok: false, error }
+    }
+    dispatchMenuPublishWarning(null)
+    return { ok: true }
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e)
+    dispatchMenuPublishWarning(error)
+    return { ok: false, error }
+  }
+}
+
+async function mutationSuccess(pin: string): Promise<MutationResult> {
+  const publish = await publishMenuJson(pin)
+  if (publish.ok) return { ok: true }
+  return {
+    ok: true,
+    warning: `Saved in Supabase, but menu.json was not republished: ${publish.error ?? GENERIC_ERROR}`,
+  }
+}
+
 /**
  * Resolves a secret table token (from a QR code or NFC tag) to its table
  * number. Validated server-side via the resolve_table_token RPC so the full
@@ -178,11 +301,16 @@ export async function resolveTableToken(token: string): Promise<string | null> {
  * still be viewed and edited.
  */
 export async function fetchMenu(options: FetchMenuOptions = false): Promise<MenuData> {
+  const { includeUnavailable, lang } = normalizeFetchMenuOptions(options)
+
+  if (!includeUnavailable) {
+    return fetchPublishedMenu()
+  }
+
   if (!supabase) {
     throw new Error(GENERIC_ERROR)
   }
 
-  const { includeUnavailable, lang } = normalizeFetchMenuOptions(options)
   const menuColumns = lang
     ? `id,category,title:title_${lang},description:description_${lang},price,image,tag:tag_${lang},modifiers,not_served_windows,is_available,unavailable_dates`
     : "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates"
@@ -277,7 +405,7 @@ export async function updateMenuItem(
   pin: string,
   id: string,
   updates: MenuUpdate,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<MutationResult> {
   if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("update_menu_item_secure", {
     p_pin: pin,
@@ -293,7 +421,7 @@ export async function updateMenuItem(
     p_modifiers: updates.modifiers,
   })
   if (error) return { ok: false, error: error.message }
-  return { ok: true }
+  return mutationSuccess(pin)
 }
 
 /**
@@ -302,14 +430,14 @@ export async function updateMenuItem(
 export async function deleteMenuItem(
   pin: string,
   id: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<MutationResult> {
   if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("delete_menu_item_secure", {
     p_pin: pin,
     p_id: id,
   })
   if (error) return { ok: false, error: error.message }
-  return { ok: true }
+  return mutationSuccess(pin)
 }
 
 export interface MenuInsert {
@@ -332,7 +460,7 @@ export interface MenuInsert {
 export async function insertMenuItem(
   pin: string,
   item: MenuInsert,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<MutationResult> {
   if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("insert_menu_item_secure", {
     p_pin: pin,
@@ -349,7 +477,7 @@ export async function insertMenuItem(
     p_modifiers: item.modifiers ?? [],
   })
   if (error) return { ok: false, error: error.message }
-  return { ok: true }
+  return mutationSuccess(pin)
 }
 
 export interface CategoryInsert {
@@ -364,7 +492,7 @@ export interface CategoryInsert {
 export async function insertCategory(
   pin: string,
   category: CategoryInsert,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<MutationResult> {
   if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("insert_category_secure", {
     p_pin: pin,
@@ -373,7 +501,7 @@ export async function insertCategory(
     p_label_ar: category.label_ar,
   })
   if (error) return { ok: false, error: error.message }
-  return { ok: true }
+  return mutationSuccess(pin)
 }
 
 /**
@@ -382,14 +510,14 @@ export async function insertCategory(
 export async function deleteCategory(
   pin: string,
   id: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<MutationResult> {
   if (!supabase) return { ok: false, error: GENERIC_ERROR }
   const { error } = await supabase.rpc("delete_category_secure", {
     p_pin: pin,
     p_id: id,
   })
   if (error) return { ok: false, error: error.message }
-  return { ok: true }
+  return mutationSuccess(pin)
 }
 
 export interface OrderPayload {

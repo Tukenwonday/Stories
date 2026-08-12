@@ -1169,6 +1169,7 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
   const [addingCategory, setAddingCategory] = useState(false)
   const [confirmingDeleteCat, setConfirmingDeleteCat] = useState<string | null>(null)
   const [catError, setCatError] = useState<string | null>(null)
+  const [publishWarning, setPublishWarning] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
   const load = useCallback(() => {
@@ -1189,6 +1190,15 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    function onPublishWarning(event: Event) {
+      const detail = (event as CustomEvent<string | null>).detail
+      setPublishWarning(typeof detail === "string" && detail ? detail : null)
+    }
+    window.addEventListener("menu-export-warning", onPublishWarning)
+    return () => window.removeEventListener("menu-export-warning", onPublishWarning)
+  }, [])
 
   async function handleDeleteCategory(id: string) {
     setCatError(null)
@@ -1322,6 +1332,20 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
           <button
             type="button"
             onClick={() => setCatError(null)}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface text-muted active:bg-surface-2"
+            aria-label={t("close")}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {publishWarning && (
+        <div className="mt-5 flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-300">{publishWarning}</p>
+          <button
+            type="button"
+            onClick={() => setPublishWarning(null)}
             className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface text-muted active:bg-surface-2"
             aria-label={t("close")}
           >
