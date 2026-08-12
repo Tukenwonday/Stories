@@ -37,8 +37,8 @@ export default function App() {
 
   // Use React Query for menu fetching with deduplication & caching
   const { data: menuData, error: menuError, isLoading } = useQuery({
-    queryKey: queryKeys.menu,
-    queryFn: () => fetchMenu(false),
+    queryKey: [...queryKeys.menu, lang],
+    queryFn: () => fetchMenu({ lang }),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   })
@@ -79,7 +79,7 @@ export default function App() {
     return list
   }, [isSearching, trimmedQuery, query, lang, activeCatId, menuData])
 
-  const activeLabel = menuData?.categories.find((c) => c.id === activeCat)?.label[lang]
+  const activeLabel = menuData?.categories.find((c) => c.id === activeCatId)?.label[lang]
 
   if (tokenInvalid) {
     return (
@@ -152,7 +152,7 @@ export default function App() {
         <div className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
           <Header tableNumber={tableNumber} />
           {!isSearching && (
-            <CategoryNav active={activeCat} onSelect={setActiveCat} categories={menuData?.categories ?? []} />
+            <CategoryNav active={activeCatId} onSelect={setActiveCat} categories={menuData?.categories ?? []} />
           )}
         </div>
         <div className="mx-auto max-w-4xl px-4 pt-4">

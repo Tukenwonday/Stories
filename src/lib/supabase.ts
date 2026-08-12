@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
-import type { CartLine, Category, MenuItem, ModifierGroup, NotServedWindow } from "../types"
+import type { CartLine, Category, Lang, MenuItem, ModifierGroup, NotServedWindow } from "../types"
 import { logError } from "./logger"
 
 const url = import.meta.env.VITE_SUPABASE_URL
@@ -50,9 +50,50 @@ interface MenuRow {
   unavailable_dates: string[] | null
 }
 
+interface LocalizedCategoryRow {
+  id: string
+  label: string
+}
+
+interface LocalizedMenuRow {
+  id: string
+  category: string
+  title: string
+  description: string
+  price: number
+  image: string | null
+  tag: string | null
+  modifiers: ModifierGroup[]
+  not_served_windows: NotServedWindow[] | null
+  is_available: boolean
+  unavailable_dates: string[] | null
+}
+
 export interface MenuData {
   categories: Category[]
   menu: MenuItem[]
+}
+
+type FetchMenuOptions = boolean | {
+  includeUnavailable?: boolean
+  lang?: Lang
+}
+
+function normalizeFetchMenuOptions(options: FetchMenuOptions = false): {
+  includeUnavailable: boolean
+  lang?: Lang
+} {
+  if (typeof options === "boolean") {
+    return { includeUnavailable: options }
+  }
+  return {
+    includeUnavailable: options.includeUnavailable ?? false,
+    lang: options.lang,
+  }
+}
+
+function oneLanguage(value: string): { en: string; ar: string } {
+  return { en: value, ar: value }
 }
 
 export const queryKeys = {
@@ -136,16 +177,20 @@ export async function resolveTableToken(token: string): Promise<string | null> {
  * dishes. Pass true from staff screens (MenuEditor) so disabled dishes can
  * still be viewed and edited.
  */
-export async function fetchMenu(includeUnavailable = false): Promise<MenuData> {
+export async function fetchMenu(options: FetchMenuOptions = false): Promise<MenuData> {
   if (!supabase) {
     throw new Error(GENERIC_ERROR)
   }
 
+  const { includeUnavailable, lang } = normalizeFetchMenuOptions(options)
+  const menuColumns = lang
+    ? `id,category,title:title_${lang},description:description_${lang},price,image,tag:tag_${lang},modifiers,not_served_windows,is_available,unavailable_dates`
+    : "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates"
+  const categoryColumns = lang ? `id,label:label_${lang}` : "id,label_en,label_ar"
+
   const menuQuery = supabase
     .from("menu")
-    .select(
-      "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates",
-    )
+    .select(menuColumns)
     .limit(200)
   if (!includeUnavailable) {
     menuQuery.eq("is_available", true)
@@ -154,7 +199,7 @@ export async function fetchMenu(includeUnavailable = false): Promise<MenuData> {
   const [cats, items] = await Promise.all([
     supabase
       .from("categories")
-      .select("id,label_en,label_ar")
+      .select(categoryColumns)
       .order("sort_order", { ascending: true }),
     menuQuery,
   ])
@@ -163,27 +208,49 @@ export async function fetchMenu(includeUnavailable = false): Promise<MenuData> {
     throw new Error("Something went wrong. Please try again.")
   }
 
-  const categories: Category[] = ((cats.data ?? []) as CategoryRow[]).map((r) => ({
-    id: r.id,
-    label: { en: r.label_en, ar: r.label_ar },
-  }))
+  const categories: Category[] = lang
+    ? (((cats.data ?? []) as unknown) as LocalizedCategoryRow[]).map((r) => ({
+        id: r.id,
+        label: oneLanguage(r.label),
+      }))
+    : (((cats.data ?? []) as unknown) as CategoryRow[]).map((r) => ({
+        id: r.id,
+        label: { en: r.label_en, ar: r.label_ar },
+      }))
 
-  const menu: MenuItem[] = ((items.data ?? []) as MenuRow[]).map((r) => ({
-    id: r.id,
-    category: r.category,
-    title: { en: r.title_en, ar: r.title_ar },
-    description: { en: r.description_en, ar: r.description_ar },
-    price: Number(r.price),
-    image: publicImageUrl(r.image),
-    tag: r.tag_en ? { en: r.tag_en, ar: r.tag_ar ?? "" } : undefined,
-    modifiers: r.modifiers,
-    notServedWindows: (r.not_served_windows ?? []).map((w) => ({
-      from: w.from.slice(0, 5),
-      to: w.to.slice(0, 5),
-    })),
-    isAvailable: r.is_available,
-    unavailableDates: r.unavailable_dates ?? [],
-  }))
+  const menu: MenuItem[] = lang
+    ? (((items.data ?? []) as unknown) as LocalizedMenuRow[]).map((r) => ({
+        id: r.id,
+        category: r.category,
+        title: oneLanguage(r.title),
+        description: oneLanguage(r.description),
+        price: Number(r.price),
+        image: publicImageUrl(r.image),
+        tag: r.tag ? oneLanguage(r.tag) : undefined,
+        modifiers: r.modifiers,
+        notServedWindows: (r.not_served_windows ?? []).map((w) => ({
+          from: w.from.slice(0, 5),
+          to: w.to.slice(0, 5),
+        })),
+        isAvailable: r.is_available,
+        unavailableDates: r.unavailable_dates ?? [],
+      }))
+    : (((items.data ?? []) as unknown) as MenuRow[]).map((r) => ({
+        id: r.id,
+        category: r.category,
+        title: { en: r.title_en, ar: r.title_ar },
+        description: { en: r.description_en, ar: r.description_ar },
+        price: Number(r.price),
+        image: publicImageUrl(r.image),
+        tag: r.tag_en ? { en: r.tag_en, ar: r.tag_ar ?? "" } : undefined,
+        modifiers: r.modifiers,
+        notServedWindows: (r.not_served_windows ?? []).map((w) => ({
+          from: w.from.slice(0, 5),
+          to: w.to.slice(0, 5),
+        })),
+        isAvailable: r.is_available,
+        unavailableDates: r.unavailable_dates ?? [],
+      }))
 
   return { categories, menu }
 }
