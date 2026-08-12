@@ -77,7 +77,7 @@ export const onRequestPost: PagesFunction = async (context) => {
       fetch(`${SUPABASE_URL}/rest/v1/categories?select=${CATEGORY_COLUMNS}&order=sort_order.asc`, {
         headers: supabaseHeaders,
       }).then((response) => readJson<CategoryRow[]>(response)),
-      fetch(`${SUPABASE_URL}/rest/v1/menu?select=${MENU_COLUMNS}&is_available=eq.true`, {
+      fetch(`${SUPABASE_URL}/rest/v1/menu?select=${MENU_COLUMNS}`, {
         headers: supabaseHeaders,
       }).then((response) => readJson<MenuRow[]>(response)),
     ])
@@ -112,4 +112,3 @@ export const onRequestPost: PagesFunction = async (context) => {
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500)
   }
 }
-

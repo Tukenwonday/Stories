@@ -184,7 +184,6 @@ function normalizePublishedMenu(data: unknown): MenuData {
 
   const menu: MenuItem[] = data.menu
     .filter(isRecord)
-    .filter((row) => row.isAvailable !== false)
     .map((row) => {
       const title = isRecord(row.title) ? row.title : {}
       const description = isRecord(row.description) ? row.description : {}

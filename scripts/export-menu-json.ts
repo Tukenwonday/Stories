@@ -37,7 +37,7 @@ async function main() {
   const supabase = createClient(supabaseUrl, supabaseKey)
   const [categoriesResult, menuResult] = await Promise.all([
     supabase.from("categories").select(CATEGORY_COLUMNS).order("sort_order", { ascending: true }),
-    supabase.from("menu").select(MENU_COLUMNS).eq("is_available", true),
+    supabase.from("menu").select(MENU_COLUMNS),
   ])
 
   if (categoriesResult.error) throw categoriesResult.error
@@ -73,4 +73,3 @@ main().catch((error) => {
   console.error(error instanceof Error ? error.message : error)
   process.exitCode = 1
 })
-
