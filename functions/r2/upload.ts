@@ -1,5 +1,3 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
-
 export const onRequestPost: PagesFunction = async (context) => {
   try {
     const R2_ACCOUNT_ID = (context.env as { R2_ACCOUNT_ID?: string }).R2_ACCOUNT_ID || ""
@@ -9,7 +7,7 @@ export const onRequestPost: PagesFunction = async (context) => {
     const R2_PUBLIC_URL = (context.env as { R2_PUBLIC_URL?: string }).R2_PUBLIC_URL || ""
 
     if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
-      return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+      return new Response(JSON.stringify({ error: "Server misconfigured: missing R2 credentials" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       })
@@ -35,25 +33,31 @@ export const onRequestPost: PagesFunction = async (context) => {
 
     const objectKey = path.replace(/^\/+/, "")
     const contentType = file.type || "application/octet-stream"
+    const arrayBuffer = await file.arrayBuffer()
+    const body = new Uint8Array(arrayBuffer)
 
-    const r2 = new S3Client({
-      region: "auto",
-      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: R2_ACCESS_KEY_ID,
-        secretAccessKey: R2_SECRET_ACCESS_KEY,
+    const endpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+    const url = `${endpoint}/${R2_BUCKET}/${encodeURIComponent(objectKey)}`
+
+    const credential = btoa(`${R2_ACCESS_KEY_ID}:${R2_SECRET_ACCESS_KEY}`)
+
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
+        Authorization: `Basic ${credential}`,
       },
+      body: body as any,
     })
 
-    await r2.send(
-      new PutObjectCommand({
-        Bucket: R2_BUCKET,
-        Key: objectKey,
-        Body: file,
-        ContentType: contentType,
-        CacheControl: "public, max-age=31536000, s-maxage=31536000, immutable",
-      }),
-    )
+    if (!response.ok) {
+      const text = await response.text()
+      return new Response(JSON.stringify({ error: `Upload failed: ${response.status} ${text}` }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
 
     const publicUrl = `${R2_PUBLIC_URL.replace(/\/+$/, "")}/${objectKey}`
     return new Response(JSON.stringify({ ok: true, publicUrl, path: objectKey }), {

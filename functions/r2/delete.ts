@@ -1,5 +1,3 @@
-import { signS3Request } from "../lib/s3-signing"
-
 export const onRequestPost: PagesFunction = async (context) => {
   try {
     const { pin, path: key } = (await context.request.json()) as { pin: string; path: string }
@@ -47,11 +45,18 @@ export const onRequestPost: PagesFunction = async (context) => {
     const endpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
     const url = `${endpoint}/${R2_BUCKET}/${encodeURIComponent(objectKey)}`
 
-    const signed = await signS3Request("DELETE", url, {}, null, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY)
+    const credential = btoa(`${R2_ACCESS_KEY_ID}:${R2_SECRET_ACCESS_KEY}`)
 
-    const response = await fetch(signed)
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Basic ${credential}`,
+      },
+    })
+
     if (!response.ok && response.status !== 204) {
-      return new Response(JSON.stringify({ error: `Delete failed: ${response.status}` }), {
+      const text = await response.text()
+      return new Response(JSON.stringify({ error: `Delete failed: ${response.status} ${text}` }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       })
