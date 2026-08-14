@@ -1,4 +1,3 @@
-import { compressImage } from "./images"
 import { buildPublicImageUrl, GENERIC_ERROR } from "./supabase"
 
 const R2_UPLOAD_URL = "/r2/upload"
@@ -25,23 +24,19 @@ function extractBucketPath(value: string): string | null {
 
 export async function uploadMenuItemImage(
   blob: Blob | File,
-  itemId: string,
+  path: string,
   oldImage?: string,
 ): Promise<UploadResult> {
   try {
     const pin = sessionStorage.getItem("kitchenPin")
     if (!pin) return { ok: false, error: "Session expired" }
 
-    const { blob: compressedBlob, ext } = await compressImage(blob)
-    const safeItem = itemId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "misc"
-    const path = `dishes/${safeItem}-${Date.now()}.${ext}`
-
     const oldPath = oldImage ? extractBucketPath(oldImage) : null
 
     const formData = new FormData()
     formData.append("pin", pin)
     formData.append("path", path)
-    formData.append("file", compressedBlob, `${path}.${ext}`)
+    formData.append("file", blob, path.split("/").pop() || "dish.webp")
 
     const uploadRes = await fetch(R2_UPLOAD_URL, {
       method: "POST",

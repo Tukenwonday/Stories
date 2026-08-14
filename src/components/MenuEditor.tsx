@@ -567,7 +567,7 @@ function ItemEditModal({
       let oldImagePath: string | undefined
 
       if (stagedImage) {
-        const result = await uploadMenuItemImage(stagedImage.blob, item.id, item.image)
+        const result = await uploadMenuItemImage(stagedImage.blob, stagedImage.path, item.image)
         if (!result.ok) {
           setSaveError(result.error ?? "Upload failed")
           return
