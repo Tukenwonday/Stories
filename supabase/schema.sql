@@ -75,6 +75,11 @@ create table if not exists public.orders (
   paid           boolean not null default false
 );
 
+-- Realtime delivers the FULL old row on DELETE/UPDATE events so the checkout
+-- dashboard's DELETE handler can read payload.old.table_number. Without this,
+-- DELETE events only carry the primary key.
+alter table public.orders replica identity full;
+
 -- Secret QR tokens that map to a table number. RLS blocks all direct reads so
 -- the full list can never be downloaded; only resolve_table_token() can look
 -- up a single token the client already possesses.
@@ -188,14 +193,16 @@ drop policy if exists "menu-images delete" on storage.objects;
 
 -- ---------------------------------------------------------------------------
 -- cleanup_old_orders() -> void
--- Removes paid orders older than 90 days. Run via pg_cron daily.
+-- Removes paid orders older than 14 days. Run via pg_cron daily.
+-- 14 days keeps ~350 MB of order history at 300k orders/mo, safely under the
+-- 500 MB Supabase free-tier cap.
 -- ---------------------------------------------------------------------------
 create or replace function cleanup_old_orders()
 returns void language plpgsql security definer as $$
 begin
   delete from public.orders
   where paid = true
-    and created_at < now() - interval '90 days';
+    and created_at < now() - interval '14 days';
 end;
 $$;
 

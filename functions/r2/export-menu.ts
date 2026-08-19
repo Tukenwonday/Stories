@@ -1,7 +1,7 @@
 import { formatMenuPayload, type CategoryRow, type MenuRow } from "../_shared/menu-json"
 import { signedR2Request } from "../_shared/r2-s3"
 
-const MENU_CACHE_CONTROL = "no-cache, must-revalidate"
+const MENU_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=30"
 const MENU_COLUMNS = "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates"
 const CATEGORY_COLUMNS = "id,label_en,label_ar"
 const RESPONSE_HEADERS = {

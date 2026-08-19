@@ -96,6 +96,7 @@ export default function Kitchen() {
   const [now, setNow] = useState(Date.now())
   const [view, setView] = useState<"orders" | "admin">("orders")
   const [channelError, setChannelError] = useState(false)
+  const channelRef = { current: null as any }
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -190,8 +191,6 @@ export default function Kitchen() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders", filter: "paid=eq.false" },
         (payload) => {
-          // Batch incoming orders in a 300ms window before updating React
-          // state, so a sudden rush of orders coalesces into one render.
           pendingRowsRef.current.push(payload.new as KitchenOrder)
           schedule()
         },
@@ -202,7 +201,6 @@ export default function Kitchen() {
         (payload) => {
           const row = payload.new as KitchenOrder
           if (row.paid) {
-            // Order was settled at checkout — remove it from the live kitchen view.
             setOrders((prev) => prev.filter((o) => o.id !== row.id))
           } else {
             setOrders((prev) => prev.map((o) => (o.id === row.id ? row : o)))
@@ -217,33 +215,24 @@ export default function Kitchen() {
         }
       })
 
+    channelRef.current = channel
+
     return () => {
       client.removeChannel(channel)
+      channelRef.current = null
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current)
     }
   }, [authed, load])
 
   useEffect(() => {
     if (!authed) return
+    let timer: ReturnType<typeof setInterval>
 
-    const resyncTimeoutRef = { current: null as ReturnType<typeof setTimeout> | null }
+    timer = setInterval(() => {
+      load()
+    }, 30000)
 
-    const resync = () => {
-      if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
-      const jitter = Math.random() * 3000
-      resyncTimeoutRef.current = setTimeout(() => void load(), 5000 + jitter)
-    }
-    const resyncWhenVisible = () => {
-      if (document.visibilityState === "visible") resync()
-    }
-
-    window.addEventListener("online", resync)
-    document.addEventListener("visibilitychange", resyncWhenVisible)
-    return () => {
-      window.removeEventListener("online", resync)
-      document.removeEventListener("visibilitychange", resyncWhenVisible)
-      if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
-    }
+    return () => clearInterval(timer)
   }, [authed, load])
 
   if (!authed) {

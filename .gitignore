@@ -19,3 +19,4 @@ supabase/.temp/
 
 # kilo tool state
 .kilo/
+.freebuff/

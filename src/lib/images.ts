@@ -3,7 +3,8 @@ export interface CompressedImage {
   ext: "webp" | "jpg" | "png"
 }
 
-const MAX_DIMENSION = 1200
+const MAX_DIMENSION = 800
+const WEBP_QUALITY = 0.75
 
 /**
  * Reads an image file in the browser, downsizes it to at most MAX_DIMENSION px
@@ -42,7 +43,7 @@ export function compressImage(file: Blob | File, maxDimension = MAX_DIMENSION): 
           resolve({ blob, ext })
         },
         "image/webp",
-        0.8,
+        WEBP_QUALITY,
       )
     }
     img.onerror = () => {
