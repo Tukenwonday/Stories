@@ -1,5 +1,5 @@
 -- =============================================================================
--- Stories Resto Cafe — Single Source of Truth for the Database
+-- Stories Resto Cafe ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Single Source of Truth for the Database
 -- =============================================================================
 -- Run this file ONCE in the Supabase SQL editor. It is idempotent (safe to
 -- re-run): tables use CREATE TABLE IF NOT EXISTS, functions use
@@ -165,7 +165,7 @@ on conflict (id) do update set public = true;
 -- The storefront/kitchen uploads photos with the anon key, so objects in this
 -- bucket are readable by everyone and writable by anyone holding the anon key
 -- (the kitchen PIN gates uploads in the app UI).
--- UPDATE and DELETE are blocked for anon — overwrites are never safe, and
+-- UPDATE and DELETE are blocked for anon ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â overwrites are never safe, and
 -- deletes go through the delete-storage-object Edge Function instead.
 drop policy if exists "menu-images select" on storage.objects;
 create policy "menu-images select" on storage.objects
@@ -193,7 +193,7 @@ drop policy if exists "menu-images delete" on storage.objects;
 
 -- ---------------------------------------------------------------------------
 -- cleanup_old_orders() -> void
--- Removes paid orders older than 14 days. Run via pg_cron daily.
+-- Removes ALL orders older than 14 days. Run via pg_cron daily.
 -- 14 days keeps ~350 MB of order history at 300k orders/mo, safely under the
 -- 500 MB Supabase free-tier cap.
 -- ---------------------------------------------------------------------------
@@ -201,8 +201,7 @@ create or replace function cleanup_old_orders()
 returns void language plpgsql security definer as $$
 begin
   delete from public.orders
-  where paid = true
-    and created_at < now() - interval '14 days';
+  where created_at < now() - interval '14 days';
 end;
 $$;
 
@@ -220,36 +219,6 @@ begin
 end;
 $$;
 select cron.schedule('cleanup-old-orders', '0 3 * * *', $$select public.cleanup_old_orders()$$);
-
--- ---------------------------------------------------------------------------
--- resolve_table_token(text) -> text
--- Resolves a QR token to its table number. Returns NULL for unknown tokens.
--- Used by the storefront (src/lib/supabase.ts) to authorize a table session.
--- ---------------------------------------------------------------------------
-create or replace function resolve_table_token(p_token text)
-returns text
-language sql
-security definer
-stable
-as $$
-  select table_number from public.table_tokens where token = p_token;
-$$;
-
--- ---------------------------------------------------------------------------
--- list_table_numbers() -> text[]
--- Returns every table number (never the tokens, which stay hidden behind RLS)
--- so staff dashboards can render a dynamic table grid instead of a hardcoded
--- count. Adding a table = inserting one token row; no code changes needed.
--- ---------------------------------------------------------------------------
-create or replace function list_table_numbers()
-returns text[]
-language sql
-security definer
-stable
-as $$
-  select array_agg(table_number order by table_number::int)
-  from public.table_tokens;
-$$;
 
 -- ---------------------------------------------------------------------------
 -- verify_kitchen_pin(text) -> boolean
@@ -446,7 +415,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- insert_menu_item_secure(...) — kitchen creates a menu item.
+-- insert_menu_item_secure(...) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â kitchen creates a menu item.
 -- ---------------------------------------------------------------------------
 create or replace function insert_menu_item_secure(
   p_pin text,
@@ -482,7 +451,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- update_menu_item_secure(...) — kitchen edits a menu item.
+-- update_menu_item_secure(...) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â kitchen edits a menu item.
 -- ---------------------------------------------------------------------------
 create or replace function update_menu_item_secure(
   p_pin text,
@@ -517,7 +486,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- delete_menu_item_secure(...) — kitchen removes a menu item.
+-- delete_menu_item_secure(...) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â kitchen removes a menu item.
 -- ---------------------------------------------------------------------------
 create or replace function delete_menu_item_secure(
   p_pin text,
@@ -533,7 +502,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- insert_category_secure(...) — kitchen creates a category (appended at end).
+-- insert_category_secure(...) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â kitchen creates a category (appended at end).
 -- ---------------------------------------------------------------------------
 create or replace function insert_category_secure(
   p_pin text,
@@ -560,7 +529,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- delete_category_secure(...) — kitchen deletes a category and its items.
+-- delete_category_secure(...) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â kitchen deletes a category and its items.
 -- ---------------------------------------------------------------------------
 create or replace function delete_category_secure(
   p_pin text,
@@ -577,7 +546,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- mark_order_paid_secure(...) — checkout marks a single order as paid.
+-- mark_order_paid_secure(...) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â checkout marks a single order as paid.
 -- ---------------------------------------------------------------------------
 create or replace function mark_order_paid_secure(
   p_pin text,
@@ -630,3 +599,7 @@ insert into public.table_tokens (token, table_number) values
   ('5bfc697e-fddb-40e6-bb2c-0d20cded5c9c', '14'),
   ('6e3c3b14-831a-4373-ba28-72845671dc1e', '15')
 on conflict (token) do nothing;
+
+
+
+

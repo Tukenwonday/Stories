@@ -224,17 +224,6 @@ export default function Kitchen() {
     }
   }, [authed, load])
 
-  useEffect(() => {
-    if (!authed) return
-    let timer: ReturnType<typeof setInterval>
-
-    timer = setInterval(() => {
-      load()
-    }, 30000)
-
-    return () => clearInterval(timer)
-  }, [authed, load])
-
   if (!authed) {
     return (
       <LangContext.Provider value={{ lang, dir, toggle: () => setLang((l) => (l === "ar" ? "en" : "ar")) }}>
