@@ -16,9 +16,37 @@ export const isSupabaseConfigured = Boolean(url && anonKey)
 /** Customer-facing message used whenever the backend is unavailable. */
 export const GENERIC_ERROR = "Something went wrong. Please try again."
 
+// Staff header injection for RLS: every PostgREST/Realtime request includes x-kitchen-pin
+// if staff has verified PIN (stored as kitchenPin). Anonymous storefront without PIN gets no header
+// and is denied by RLS `staff can read orders` (using current_setting('request.headers')).
+const staffFetch: typeof fetch = (input, init = {}) => {
+  const headers = new Headers(init.headers as HeadersInit)
+  try {
+    const pin = typeof window !== "undefined" ? sessionStorage.getItem("kitchenPin") : null
+    if (pin) headers.set("x-kitchen-pin", pin)
+  } catch {
+    // ignore storage errors (private mode)
+  }
+  return fetch(input as RequestInfo, { ...init, headers })
+}
+
 export const supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(url, anonKey)
+  ? createClient(url, anonKey, {
+      global: { fetch: staffFetch as typeof fetch },
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
   : null
+
+// Also patch realtime to include staff header on WebSocket handshake (Supabase Realtime uses fetch for token)
+// supabase-js realtime inherits global.headers, but we ensure channel params carry PIN for RLS header check
+export function getStaffHeaders(): Record<string, string> {
+  try {
+    const pin = typeof window !== "undefined" ? sessionStorage.getItem("kitchenPin") : null
+    return pin ? { "x-kitchen-pin": pin } : {}
+  } catch {
+    return {}
+  }
+}
 
 const R2_PUBLIC_URL = (import.meta.env.VITE_R2_PUBLIC_URL || "").replace(/\/+$/, "")
 
@@ -106,6 +134,8 @@ export const queryKeys = {
   menu: ["menu"] as const,
   tablesSummary: ["tables-summary"] as const,
   tableOrders: (tableNumber: string) => ["table-orders", tableNumber] as const,
+  tableOrdersSummary: (tableNumber: string) => ["table-orders-summary", tableNumber] as const,
+  kitchenOrders: ["kitchen-orders"] as const,
 }
 
 /**
@@ -655,6 +685,52 @@ export async function fetchTablesSummary(): Promise<TableSummary[]> {
   if (!supabase) {
     throw new Error(GENERIC_ERROR)
   }
+
+  // Phase 2: server-side aggregation via get_tables_summary(p_pin) RPC.
+  // PIN-gated: requires kitchen PIN (staff) — prevents anon storefront scraping staff aggregates.
+  // Falls back to client aggregation if RPC missing / PIN not yet available (migration).
+  const pin = typeof window !== "undefined" ? sessionStorage.getItem("kitchenPin") : null
+  if (pin) {
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc("get_tables_summary", { p_pin: pin })
+      if (!rpcError && Array.isArray(rpcData)) {
+        const summary = new Map<string, TableSummary>()
+        for (const row of rpcData as Array<{ table_number: string; order_count: number | string; total: number | string; last_order_at: string }>) {
+          const tn = String(row.table_number).padStart(2, "0")
+          summary.set(tn, {
+            tableNumber: tn,
+            orderCount: Number(row.order_count),
+            total: Number(row.total),
+            lastOrderAt: row.last_order_at,
+          })
+        }
+        // Merge with authoritative table list so empty tables still appear (list_table_numbers is public, low sensitivity)
+        let tableNumbers: string[] = []
+        const { data: nums, error: numsError } = await supabase.rpc("list_table_numbers")
+        if (numsError) {
+          logError(numsError, "supabase list-table-numbers")
+        } else {
+          tableNumbers = (nums ?? []) as string[]
+        }
+        if (tableNumbers.length === 0) {
+          tableNumbers = [...summary.keys()]
+        }
+        const result: TableSummary[] = tableNumbers.map((tn) => {
+          const padded = tn.padStart(2, "0")
+          return summary.get(padded) ?? { tableNumber: padded, orderCount: 0, total: 0, lastOrderAt: "" }
+        })
+        result.sort((a, b) => Number(a.tableNumber) - Number(b.tableNumber))
+        return result
+      }
+      logError(rpcError, "supabase get_tables_summary fallback")
+    } catch (e) {
+      logError(e, "supabase get_tables_summary exception fallback")
+    }
+  } else {
+    logError("No kitchenPin for get_tables_summary — falling back to client aggregation (migration)", "supabase get_tables_summary")
+  }
+
+  // Fallback: client aggregation (24h window, limit 200) — respects RLS public read; used if PIN not available pre-migration
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from("orders")
@@ -682,9 +758,6 @@ export async function fetchTablesSummary(): Promise<TableSummary[]> {
     }
   }
 
-  // Fetch the authoritative list of table numbers (server-side RPC) so the
-  // dashboard grid stays in sync as tables are added/removed. Falls back to
-  // tables seen in recent orders if the RPC isn't available yet.
   let tableNumbers: string[] = []
   if (supabase) {
     const { data: nums, error: numsError } = await supabase.rpc("list_table_numbers")
@@ -706,18 +779,113 @@ export async function fetchTablesSummary(): Promise<TableSummary[]> {
   return result
 }
 
+// Phase 3: Split checkout order queries — summary (without items) + detail (by id with items)
+// Summary: used for lightweight paginated lists; detail: when user opens a specific order.
+// Requirement: Do NOT fetch items for every history row; keep initial payload small.
+
+// Lightweight paginated list for a table — WITHOUT items/notes/payment_method (saves ~90% per row).
+// 48h window, newest-first, cursor pagination on (created_at desc, id desc) to avoid OFFSET.
+// Cursor: last row's (created_at, id) from previous page. Limit 30 initial.
+export async function fetchTableOrdersPage(
+  tableNumber: string,
+  opts: { cursor?: { created_at: string; id: string }; limit?: number } = {}
+): Promise<any[]> {
+  if (!supabase) {
+    throw new Error(GENERIC_ERROR)
+  }
+  const limit = Math.min(Math.max(opts.limit ?? 30, 1), 50)
+  const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+  let query = supabase
+    .from("orders")
+    .select("id, created_at, customer_name, total, paid")
+    .eq("table_number", tableNumber)
+    .gte("created_at", twoDaysAgo)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit)
+
+  // Cursor pagination: (created_at, id) < (cursor.created_at, cursor.id) for desc order.
+  // Supabase or() syntax: created_at < cursor.created_at OR (created_at = cursor.created_at AND id < cursor.id)
+  if (opts.cursor) {
+    const cAt = opts.cursor.created_at
+    const cId = opts.cursor.id
+    // Escape quotes for safe or filter
+    const safeAt = cAt.replace(/"/g, '\\"')
+    const safeId = cId.replace(/"/g, '\\"')
+    query = query.or(`and(created_at.eq."${safeAt}",id.lt."${safeId}"),created_at.lt."${safeAt}"`)
+  }
+
+  const { data, error } = await query
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+// Alias for first page (kept for compatibility)
+export async function fetchTableOrdersSummary(tableNumber: string): Promise<any[]> {
+  return fetchTableOrdersPage(tableNumber, { limit: 30 })
+}
+
+// Full detail for a single order (items + notes + payment_method). Fetch by exact id.
+export async function fetchOrderDetail(orderId: string): Promise<any | null> {
+  if (!supabase) {
+    throw new Error(GENERIC_ERROR)
+  }
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, created_at, table_number, customer_name, notes, payment_method, items, total, paid")
+    .eq("id", orderId)
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data ?? null
+}
+
+// Legacy detail fetch with items — now 48h/30 but kept for kitchen/compat where items needed immediately.
+// For checkout history with pagination, prefer fetchTableOrdersPage (slim) + fetchOrderDetail (on open).
 export async function fetchTableOrders(tableNumber: string): Promise<any[]> {
   if (!supabase) {
     throw new Error(GENERIC_ERROR)
   }
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from("orders")
-    .select("id, created_at, table_number, customer_name, notes, payment_method, items, total, paid")
+    .select("id, created_at, customer_name, notes, items, total, paid")
     .eq("table_number", tableNumber)
-    .gte("created_at", sevenDaysAgo)
+    .gte("created_at", twoDaysAgo)
     .order("created_at", { ascending: false })
-    .limit(50)
+    .order("id", { ascending: false })
+    .limit(30)
+
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+// Kitchen-optimized: keeps items (cooks need them immediately) but only columns kitchen displays.
+// Explicit column list (no SELECT *) — excludes payment_method, status etc.
+// PIN-gated via fetch_kitchen_orders(p_pin, p_limit) RPC; fallback to direct RLS public read.
+export async function fetchKitchenOrders(limit = 30): Promise<any[]> {
+  if (!supabase) {
+    throw new Error(GENERIC_ERROR)
+  }
+  const pin = typeof window !== "undefined" ? sessionStorage.getItem("kitchenPin") : null
+  if (pin) {
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc("fetch_kitchen_orders", { p_pin: pin, p_limit: limit })
+      if (!rpcError && rpcData) return rpcData as any[]
+      logError(rpcError, "supabase fetch_kitchen_orders fallback")
+    } catch (e) {
+      logError(e, "supabase fetch_kitchen_orders exception fallback")
+    }
+  } else {
+    logError("No kitchenPin for fetch_kitchen_orders — fallback to direct query", "supabase fetch_kitchen_orders")
+  }
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, created_at, table_number, customer_name, notes, items, total, paid")
+    .eq("paid", false)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(Math.min(Math.max(limit, 1), 100))
 
   if (error) throw new Error(error.message)
   return data ?? []

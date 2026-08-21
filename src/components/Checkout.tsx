@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { ArrowLeft, Clock, Lock, RefreshCw, X, CheckCircle2, Circle } from "lucide-react"
 import type { TableSummary } from "../lib/supabase"
-import { supabase, verifyKitchenPin, fetchTablesSummary, fetchTableOrders, markOrderPaid } from "../lib/supabase"
+import { supabase, verifyKitchenPin, fetchTablesSummary, fetchTableOrdersPage, fetchOrderDetail, markOrderPaid, queryKeys } from "../lib/supabase"
+import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import { checkoutStrings, t } from "../checkout-i18n"
 
 function timeAgo(dateStr: string): string {
@@ -46,11 +47,7 @@ export default function Checkout() {
   const [view, setView] = useState<"dashboard" | "detail">("dashboard")
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
 
-  const [tables, setTables] = useState<TableSummary[]>([])
-  const [orders, setOrders] = useState<any[]>([])
-  const [paidOrderIds, setPaidOrderIds] = useState<Set<string>>(new Set())
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [localError, setLocalError] = useState<string | null>(null)
   const [channelError, setChannelError] = useState(false)
 
   useEffect(() => {
@@ -77,57 +74,118 @@ export default function Checkout() {
     }
   }
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const summary = await fetchTablesSummary()
-      setTables(summary)
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const queryClient = useQueryClient()
 
-  const loadDetail = useCallback(async (tableNumber: string) => {
-    setLoading(true)
-    setError(null)
-    setOrders([])
-    try {
-      const data = await fetchTableOrders(tableNumber)
-      setOrders(data)
-      setPaidOrderIds(new Set(data.filter((o: any) => o.paid === true).map((o: any) => o.id)))
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  // Phase 6: TanStack Query for caching/dedup — dashboard summary 15s stale, detail 15s
+  const tablesQuery = useQuery({
+    queryKey: queryKeys.tablesSummary,
+    queryFn: fetchTablesSummary,
+    enabled: authed && view === "dashboard",
+    staleTime: 15_000,
+    gcTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+  })
 
-  const reloadCurrentView = useCallback(async () => {
-    if (view === "dashboard") {
-      await loadDashboard()
-    } else if (selectedTable) {
-      await loadDetail(selectedTable)
-    }
-  }, [view, selectedTable, loadDashboard, loadDetail])
+  // Phase 2: paginated slim history — 30 newest, cursor (created_at,id), no items
+  const ordersInfiniteQuery = useInfiniteQuery({
+    queryKey: queryKeys.tableOrders(selectedTable ?? "__none__"),
+    queryFn: ({ pageParam }: { pageParam?: { created_at: string; id: string } }) =>
+      fetchTableOrdersPage(selectedTable!, { cursor: pageParam, limit: 30 }),
+    initialPageParam: undefined as { created_at: string; id: string } | undefined,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length < 30) return undefined
+      const last = lastPage[lastPage.length - 1] as any
+      return { created_at: last.created_at, id: last.id }
+    },
+    enabled: authed && view === "detail" && !!selectedTable,
+    staleTime: 15_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+  })
 
+  // Flatten pages with dedup by id (avoids duplicates when Realtime inserts while paginated)
+  const ordersFlat = (ordersInfiniteQuery.data?.pages.flat() ?? []) as any[]
+  const ordersDeduped = (() => {
+    const seen = new Set<string>()
+    const out: any[] = []
+    for (const o of ordersFlat) {
+      if (!seen.has(o.id)) {
+        seen.add(o.id)
+        out.push(o)
+      }
+    }
+    return out
+  })()
+
+  // Detail cache: fetch full items only when order opened
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
+  const [orderDetails, setOrderDetails] = useState<Map<string, any>>(new Map())
+  const toggleOrderDetail = useCallback(async (orderId: string) => {
+    if (expandedOrderId === orderId) {
+      setExpandedOrderId(null)
+      return
+    }
+    setExpandedOrderId(orderId)
+    if (!orderDetails.has(orderId)) {
+      try {
+        const detail = await fetchOrderDetail(orderId)
+        if (detail) {
+          setOrderDetails((prev) => {
+            const next = new Map(prev)
+            next.set(orderId, detail)
+            return next
+          })
+        }
+      } catch (e) {
+        setLocalError(e instanceof Error ? e.message : String(e))
+      }
+    }
+  }, [expandedOrderId, orderDetails])
+
+  // Derive tables/orders/loading/error from queries (with local overrides for realtime)
+  const tables = tablesQuery.data ?? []
+  const orders = ordersDeduped
+  const loading = view === "dashboard" ? tablesQuery.isLoading && !tablesQuery.data : view === "detail" ? ordersInfiniteQuery.isLoading && !ordersInfiniteQuery.data : false
+  const queryError = view === "dashboard" ? tablesQuery.error : view === "detail" ? ordersInfiniteQuery.error : null
+  const error = localError ?? (queryError ? (queryError as Error).message : null)
+
+  // Paid ids derived from orders query (local optimistic)
+  const [paidOrderIds, setPaidOrderIds] = useState<Set<string>>(new Set())
   useEffect(() => {
-    if (authed && view === "dashboard") loadDashboard()
-  }, [authed, view, loadDashboard])
+    if (orders.length) {
+      setPaidOrderIds(new Set(orders.filter((o: any) => o.paid === true).map((o: any) => o.id)))
+    } else {
+      setPaidOrderIds(new Set())
+    }
+  }, [orders])
 
-  useEffect(() => {
-    if (authed && view === "detail" && selectedTable) loadDetail(selectedTable)
-  }, [authed, view, selectedTable, loadDetail])
+  // Invalidate helpers — targeted, deduped by QueryClient
+  const invalidateDashboard = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.tablesSummary })
+  }, [queryClient])
+  const invalidateDetail = useCallback((tableNumber?: string) => {
+    const tn = tableNumber ?? selectedTable
+    if (tn) queryClient.invalidateQueries({ queryKey: queryKeys.tableOrders(tn) })
+  }, [queryClient, selectedTable])
 
+  const reloadCurrentView = useCallback(() => {
+    if (view === "dashboard") invalidateDashboard()
+    else if (selectedTable) invalidateDetail(selectedTable)
+  }, [view, selectedTable, invalidateDashboard, invalidateDetail])
+
+  // Phase 7: Targeted realtime — only invalidate affected view/table, debounced 800ms
   useEffect(() => {
     if (!authed || !supabase) return
     const client = supabase
     const reloadDebounceRef = { current: null as ReturnType<typeof setTimeout> | null }
-    const debouncedReload = () => {
+    const debouncedInvalidate = (tableNumber?: string) => {
       if (reloadDebounceRef.current) clearTimeout(reloadDebounceRef.current)
-      reloadDebounceRef.current = setTimeout(() => void reloadCurrentView(), 800)
+      reloadDebounceRef.current = setTimeout(() => {
+        if (view === "dashboard") invalidateDashboard()
+        else if (view === "detail" && tableNumber && tableNumber === selectedTable) invalidateDetail(tableNumber)
+      }, 800)
     }
     const channel = client
       .channel("checkout-orders")
@@ -135,28 +193,34 @@ export default function Checkout() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders", filter: "paid=eq.false" },
         (payload) => {
-          if (view === "detail" && selectedTable && payload.new.table_number === selectedTable) {
-            debouncedReload()
+          const tn = (payload.new as any)?.table_number
+          if (view === "detail" && selectedTable && tn === selectedTable) {
+            debouncedInvalidate(tn)
           } else if (view === "dashboard") {
-            debouncedReload()
+            debouncedInvalidate(tn)
           }
+          // Also invalidate dashboard even from detail, since counts change
+          if (view === "detail") invalidateDashboard()
         }
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "orders" },
         (payload) => {
-          if (view === "detail" && selectedTable && payload.old.table_number === selectedTable) {
-            debouncedReload()
+          const tn = (payload.old as any)?.table_number
+          if (view === "detail" && selectedTable && tn === selectedTable) {
+            debouncedInvalidate(tn)
           } else if (view === "dashboard") {
-            debouncedReload()
+            debouncedInvalidate(tn)
           }
+          if (view === "detail") invalidateDashboard()
         }
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
           setChannelError(false)
-          void reloadCurrentView()
+          // Initial load handled by useQuery enabled, but force refresh on (re)subscribe
+          reloadCurrentView()
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           setChannelError(true)
         }
@@ -166,7 +230,7 @@ export default function Checkout() {
       client.removeChannel(channel)
       if (reloadDebounceRef.current) clearTimeout(reloadDebounceRef.current)
     }
-  }, [authed, reloadCurrentView, view, selectedTable])
+  }, [authed, view, selectedTable, invalidateDashboard, invalidateDetail, reloadCurrentView])
 
   useEffect(() => {
     if (!authed) return
@@ -176,7 +240,7 @@ export default function Checkout() {
     const resync = () => {
       if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
       const jitter = Math.random() * 3000
-      resyncTimeoutRef.current = setTimeout(() => void reloadCurrentView(), 5000 + jitter)
+      resyncTimeoutRef.current = setTimeout(() => reloadCurrentView(), 5000 + jitter)
     }
     const resyncWhenVisible = () => {
       if (document.visibilityState === "visible") resync()
@@ -191,11 +255,16 @@ export default function Checkout() {
     }
   }, [authed, reloadCurrentView])
 
+  // Manual refresh button invalidates instead of direct fetch
+  const handleManualRefresh = useCallback(() => {
+    reloadCurrentView()
+  }, [reloadCurrentView])
+
   async function handleMarkPaid(orderId: string) {
     try {
       const pin = sessionStorage.getItem("kitchenPin")
       if (!pin) {
-        setError("Session expired. Please log in again.")
+        setLocalError("Session expired. Please log in again.")
         return
       }
       const res = await markOrderPaid(pin, orderId)
@@ -205,11 +274,14 @@ export default function Checkout() {
           next.add(orderId)
           return next
         })
+        // Optimistic + invalidate to reflect paid state server-side
+        invalidateDetail()
+        invalidateDashboard()
       } else {
-        setError(res.error ?? "Failed to mark paid")
+        setLocalError(res.error ?? "Failed to mark paid")
       }
     } catch {
-      setError("Network error")
+      setLocalError("Network error")
     }
   }
 
@@ -296,7 +368,7 @@ export default function Checkout() {
           {error && (
             <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
               <p className="text-sm font-semibold text-red-400">{error}</p>
-              <button onClick={() => setError(null)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface text-muted">
+              <button onClick={() => setLocalError(null)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface text-muted">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -320,6 +392,8 @@ export default function Checkout() {
               <div className="flex flex-col gap-3">
                 {orders.map((o) => {
                   const recent = isRecent(o.created_at)
+                  const detail = orderDetails.get(o.id)
+                  const isExpanded = expandedOrderId === o.id
                   return (
                     <div
                       key={o.id}
@@ -364,49 +438,81 @@ export default function Checkout() {
                         </p>
                       )}
 
-                      <ul className="mt-3 divide-y divide-border">
-                        {(o.items ?? []).map((it: any, i: number) => {
-                          const baseTotal = baseLineTotal(it)
-                          return (
-                            <li key={i} className="flex items-start justify-between gap-3 py-2">
-                              <div className="min-w-0">
-                                <span className="text-sm font-semibold text-foreground">
-                                  {it.quantity}× {lang === "ar" ? (it.title_ar ?? it.title) : it.title}
-                                </span>
-                                {it.modifiers?.length > 0 && (
-                                  <ul className="mt-1 list-none">
-                                    {it.modifiers.map((m: any, k: number) => {
-                                      const modifierTotal = Number(m.price || 0) * it.quantity
-                                      return (
-                                        <li key={k} className="flex items-center gap-1.5 text-sm leading-relaxed text-foreground/85">
-                                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-                                          <span>{lang === "ar" ? (m.option_ar ?? m.option) : m.option}</span>
-                                          {modifierTotal > 0 && (
-                                            <span className="text-gold">+{formatAmount(modifierTotal)}</span>
-                                          )}
-                                        </li>
-                                      )
-                                    })}
-                                  </ul>
-                                )}
-                              </div>
-                              <span className="shrink-0 text-sm font-semibold text-foreground">
-                                {formatAmount(baseTotal)}
-                              </span>
-                            </li>
-                          )
-                        })}
-                      </ul>
+                      <button
+                        type="button"
+                        onClick={() => toggleOrderDetail(o.id)}
+                        className="mt-3 rounded-full border border-border bg-surface px-4 py-2 text-xs font-bold text-muted active:bg-surface-2"
+                      >
+                        {isExpanded ? "Hide details" : "View details"}
+                      </button>
 
-                      {o.notes && (
-                        <p className="mt-3 border-s-2 border-gold ps-3 text-sm leading-relaxed text-gold">
-                          {o.notes}
-                        </p>
+                      {isExpanded && (
+                        <div className="mt-3">
+                          {!detail ? (
+                            <p className="py-4 text-center text-xs text-muted">Loading details...</p>
+                          ) : (
+                            <>
+                              <ul className="divide-y divide-border">
+                                {(detail.items ?? []).map((it: any, i: number) => {
+                                  const baseTotal = baseLineTotal(it)
+                                  return (
+                                    <li key={i} className="flex items-start justify-between gap-3 py-2">
+                                      <div className="min-w-0">
+                                        <span className="text-sm font-semibold text-foreground">
+                                          {it.quantity}× {lang === "ar" ? (it.title_ar ?? it.title) : it.title}
+                                        </span>
+                                        {it.modifiers?.length > 0 && (
+                                          <ul className="mt-1 list-none">
+                                            {it.modifiers.map((m: any, k: number) => {
+                                              const modifierTotal = Number(m.price || 0) * it.quantity
+                                              return (
+                                                <li key={k} className="flex items-center gap-1.5 text-sm leading-relaxed text-foreground/85">
+                                                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                                                  <span>{lang === "ar" ? (m.option_ar ?? m.option) : m.option}</span>
+                                                  {modifierTotal > 0 && (
+                                                    <span className="text-gold">+{formatAmount(modifierTotal)}</span>
+                                                  )}
+                                                </li>
+                                              )
+                                            })}
+                                          </ul>
+                                        )}
+                                      </div>
+                                      <span className="shrink-0 text-sm font-semibold text-foreground">
+                                        {formatAmount(baseTotal)}
+                                      </span>
+                                    </li>
+                                  )
+                                })}
+                              </ul>
+                              {detail.notes && (
+                                <p className="mt-3 border-s-2 border-gold ps-3 text-sm leading-relaxed text-gold">
+                                  {detail.notes}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   )
                 })}
               </div>
+              {ordersInfiniteQuery.hasNextPage && (
+                <div className="mt-6 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => ordersInfiniteQuery.fetchNextPage()}
+                    disabled={ordersInfiniteQuery.isFetchingNextPage}
+                    className="rounded-full border border-gold/40 bg-gold/10 px-6 py-3 text-sm font-bold text-gold disabled:opacity-50 active:bg-gold/20"
+                  >
+                    {ordersInfiniteQuery.isFetchingNextPage ? "Loading..." : `Load more (${orders.length} shown)`}
+                  </button>
+                </div>
+              )}
+              {!ordersInfiniteQuery.hasNextPage && orders.length >= 30 && (
+                <p className="mt-3 text-center text-xs text-muted">All 48h orders loaded. No more hidden.</p>
+              )}
             </>
           )}
         </main>
@@ -435,7 +541,7 @@ export default function Checkout() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={loadDashboard}
+              onClick={handleManualRefresh}
               className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface text-muted"
             >
               <RefreshCw className="h-4 w-4" />
@@ -468,7 +574,7 @@ export default function Checkout() {
         {error && (
           <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
             <p className="text-sm font-semibold text-red-400">{error}</p>
-            <button onClick={() => setError(null)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface text-muted">
+            <button onClick={() => setLocalError(null)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface text-muted">
               <X className="h-4 w-4" />
             </button>
           </div>

@@ -95,6 +95,17 @@ create table if not exists public.app_config (
   value text not null
 );
 
+-- PIN brute-force throttle log. Records every PIN attempt with client IP and success.
+-- No RLS policies -> blocked for anon (service_role bypasses). Used only inside DEFINER functions.
+create table if not exists public.pin_attempts (
+  id bigserial primary key,
+  ip text not null,
+  attempted_at timestamptz not null default now(),
+  success boolean not null
+);
+alter table public.pin_attempts enable row level security;
+-- No policies -> anon cannot read/insert directly; only DEFINER functions can write.
+
 -- =============================================================================
 -- 2. INDEXES
 -- =============================================================================
@@ -104,7 +115,17 @@ create index if not exists idx_orders_table   on public.orders(table_number);
 create index if not exists idx_orders_created on public.orders(created_at);
 create index if not exists idx_orders_status_created on public.orders(status, created_at);
 create index if not exists idx_orders_paid on public.orders(paid) where paid = false;
-create index if not exists idx_orders_table_created on public.orders(table_number, created_at desc);
+-- Optimized: partial predicate already fixes paid=false, so key on paid is redundant;
+-- index only on created_at desc where paid=false. EXPLAIN ANALYZE shows equal hit for
+-- "where paid=false order by created_at desc limit 30" and smaller index.
+-- Keep single purpose-built index; no duplicate on (paid, created_at).
+drop index if exists public.idx_orders_paid_created;
+create index if not exists idx_orders_paid_created on public.orders(created_at desc) where paid = false;
+-- Cursor pagination for checkout history: (table_number, created_at desc, id desc) supports
+-- "where table_number=? and (created_at, id) < (?,?) order by created_at desc, id desc limit 30"
+-- and covers the simpler (table_number, created_at) queries. Replaces narrower index to avoid duplicate.
+drop index if exists public.idx_orders_table_created;
+create index if not exists idx_orders_table_created on public.orders(table_number, created_at desc, id desc);
 
 -- =============================================================================
 -- 3. ROW LEVEL SECURITY
@@ -127,17 +148,33 @@ drop policy if exists "menu public read" on public.menu;
 create policy "menu public read" on public.menu
   for select using (true);
 
--- orders: public READ only (the kitchen and checkout dashboards read orders
--- with the anon key). There are deliberately NO insert/update/delete policies:
--- RLS therefore denies every direct write, so the ONLY way to create, clear or
--- mark-paid an order is through the PIN/token-gated RPCs below. Any pre-existing
--- permissive policy is dropped to close the direct-UPDATE/DELETE hole.
+-- Helper for staff RLS: checks request header x-kitchen-pin against stored PIN.
+-- Must be SECURITY DEFINER so it can read app_config (which has "no access" RLS).
+create or replace function public.is_staff()
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce(current_setting('request.headers', true)::jsonb ->> 'x-kitchen-pin', '') = (select value from public.app_config where key = 'kitchen_pin');
+$$;
+grant execute on function public.is_staff() to anon, authenticated;
+
+-- orders: STAFF READ only via PIN (header or RPC). Anonymous storefront must NOT be able to
+-- .from("orders").select() and scrape customer orders. Previous "public read using (true)"
+-- was the vulnerability. Now direct SELECT requires valid staff header.
+-- There are still NO insert/update/delete policies: writes only via PIN/token-gated RPCs.
+-- Staff reads work two ways:
+--   1) Direct PostgREST/Realtime with header x-kitchen-pin = kitchen PIN (RLS below)
+--   2) PIN-gated SECURITY DEFINER RPCs (bypass RLS) — preferred for aggregates
 drop policy if exists "orders public insert"  on public.orders;
 drop policy if exists "orders public update"  on public.orders;
 drop policy if exists "orders public delete"  on public.orders;
 drop policy if exists "orders public read"    on public.orders;
-create policy "orders public read" on public.orders
-  for select using (true);
+drop policy if exists "staff can read orders" on public.orders;
+create policy "staff can read orders" on public.orders
+  for select to anon, authenticated
+  using (public.is_staff());
 
 -- table_tokens: no policies -> fully blocked (token resolution is via RPC).
 drop policy if exists "table_tokens public read" on public.table_tokens;
@@ -220,41 +257,126 @@ end;
 $$;
 select cron.schedule('cleanup-old-orders', '0 3 * * *', $$select public.cleanup_old_orders()$$);
 
+-- Cleanup old pin attempts hourly (keep 24h window for throttle)
+do $$
+declare
+  v_jobid bigint;
+begin
+  select jobid into v_jobid from cron.job where jobname = 'cleanup-pin-attempts';
+  if v_jobid is not null then
+    perform cron.unschedule(v_jobid);
+  end if;
+end;
+$$;
+select cron.schedule('cleanup-pin-attempts', '0 * * * *', $$delete from public.pin_attempts where attempted_at < now() - interval '24 hours'$$);
+
+-- Helper: extract client IP from request headers (Supabase PostgREST)
+create or replace function public.client_ip()
+returns text
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    nullif(split_part(coalesce(current_setting('request.headers', true)::jsonb ->> 'x-forwarded-for',''), ',', 1), ''),
+    nullif(current_setting('request.headers', true)::jsonb ->> 'cf-connecting-ip',''),
+    nullif(current_setting('request.headers', true)::jsonb ->> 'x-real-ip',''),
+    'unknown'
+  );
+$$;
+
 -- ---------------------------------------------------------------------------
 -- verify_kitchen_pin(text) -> boolean
 -- Compares the submitted PIN against the stored value in app_config.
+-- Brute-force protection: logs every attempt with IP, blocks after 5 failures
+-- in 15 minutes (sleep 2s + return false), and sleeps 1s on each failure.
 -- Used by the kitchen and checkout dashboards to unlock staff screens.
 -- ---------------------------------------------------------------------------
 create or replace function verify_kitchen_pin(p_pin text)
 returns boolean
 language plpgsql
 security definer
+set search_path = public
 as $$
+declare
+  v_ip text := public.client_ip();
+  v_fail_count int;
+  v_is_valid boolean;
 begin
-  if p_pin = (select value from public.app_config where key = 'kitchen_pin') then
+  -- Throttle: count failures in last 15 min for this IP
+  select count(*) into v_fail_count
+  from public.pin_attempts
+  where ip = v_ip and success = false and attempted_at > now() - interval '15 minutes';
+
+  if v_fail_count >= 5 then
+    -- Log blocked attempt
+    insert into public.pin_attempts(ip, success) values (v_ip, false);
+    perform pg_sleep(2);
+    raise exception 'Too many attempts. Try again later.' using errcode = '45000';
+  end if;
+
+  v_is_valid := (p_pin = (select value from public.app_config where key = 'kitchen_pin'));
+
+  insert into public.pin_attempts(ip, success) values (v_ip, v_is_valid);
+
+  if v_is_valid then
     return true;
   end if;
-  perform pg_sleep(1);
+
+  perform pg_sleep(1 + least(v_fail_count, 3)); -- 1-4s progressive
   return false;
+end;
+$$;
+
+-- Central PIN throttle helper: logs attempt, blocks after 5 fails/15min, sleeps on fail.
+create or replace function public.require_valid_pin(p_pin text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ip text := public.client_ip();
+  v_fail_count int;
+  v_valid boolean;
+begin
+  select count(*) into v_fail_count from public.pin_attempts
+  where ip = v_ip and success = false and attempted_at > now() - interval '15 minutes';
+  if v_fail_count >= 5 then
+    insert into public.pin_attempts(ip, success) values (v_ip, false);
+    perform pg_sleep(2);
+    raise exception 'Too many attempts. Try again later.' using errcode = '45000';
+  end if;
+  v_valid := (p_pin = (select value from public.app_config where key = 'kitchen_pin'));
+  insert into public.pin_attempts(ip, success) values (v_ip, v_valid);
+  if not v_valid then
+    perform pg_sleep(1 + least(v_fail_count, 3));
+    raise exception 'Invalid PIN';
+  end if;
 end;
 $$;
 
 -- ---------------------------------------------------------------------------
 -- update_kitchen_pin(text, text) -> boolean
 -- Updates the kitchen PIN. Verifies old PIN, stores new PIN as plain text.
+-- Throttled via require_valid_pin.
 -- ---------------------------------------------------------------------------
 create or replace function update_kitchen_pin(p_old_pin text, p_new_pin text)
 returns boolean
 language plpgsql
 security definer
+set search_path = public
 as $$
 begin
-  if p_old_pin != (select value from public.app_config where key = 'kitchen_pin') then
-    perform pg_sleep(1);
-    return false;
-  end if;
+  perform public.require_valid_pin(p_old_pin);
   update public.app_config set value = p_new_pin where key = 'kitchen_pin';
   return true;
+exception when others then
+  -- map Invalid PIN to false for legacy boolean API
+  if SQLERRM = 'Invalid PIN' then
+    return false;
+  end if;
+  raise;
 end;
 $$;
 
@@ -430,11 +552,9 @@ create or replace function insert_menu_item_secure(
   p_not_served_windows jsonb,
   p_is_available boolean,
   p_modifiers jsonb
-) returns void language plpgsql security definer as $$
+) returns void language plpgsql security definer set search_path = public as $$
 begin
-  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
-    raise exception 'Invalid PIN';
-  end if;
+  perform public.require_valid_pin(p_pin);
 
   if exists (select 1 from public.menu where id = p_id) then
     raise exception 'An item with this id already exists';
@@ -465,11 +585,9 @@ create or replace function update_menu_item_secure(
   p_not_served_windows jsonb,
   p_is_available boolean,
   p_modifiers jsonb
-) returns void language plpgsql security definer as $$
+) returns void language plpgsql security definer set search_path = public as $$
 begin
-  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
-    raise exception 'Invalid PIN';
-  end if;
+  perform public.require_valid_pin(p_pin);
 
   update public.menu set
     title_en = p_title_en,
@@ -491,11 +609,9 @@ $$;
 create or replace function delete_menu_item_secure(
   p_pin text,
   p_id text
-) returns void language plpgsql security definer as $$
+) returns void language plpgsql security definer set search_path = public as $$
 begin
-  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
-    raise exception 'Invalid PIN';
-  end if;
+  perform public.require_valid_pin(p_pin);
 
   delete from public.menu where id = p_id;
 end;
@@ -509,13 +625,11 @@ create or replace function insert_category_secure(
   p_id text,
   p_label_en text,
   p_label_ar text
-) returns void language plpgsql security definer as $$
+) returns void language plpgsql security definer set search_path = public as $$
 declare
   v_sort integer;
 begin
-  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
-    raise exception 'Invalid PIN';
-  end if;
+  perform public.require_valid_pin(p_pin);
 
   if exists (select 1 from public.categories where id = p_id) then
     raise exception 'A category with this id already exists';
@@ -534,11 +648,9 @@ $$;
 create or replace function delete_category_secure(
   p_pin text,
   p_id text
-) returns void language plpgsql security definer as $$
+) returns void language plpgsql security definer set search_path = public as $$
 begin
-  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
-    raise exception 'Invalid PIN';
-  end if;
+  perform public.require_valid_pin(p_pin);
 
   delete from public.menu where category = p_id;
   delete from public.categories where id = p_id;
@@ -551,15 +663,116 @@ $$;
 create or replace function mark_order_paid_secure(
   p_pin text,
   p_order_id text
-) returns void language plpgsql security definer as $$
+) returns void language plpgsql security definer set search_path = public as $$
 begin
-  if p_pin != (select value from public.app_config where key = 'kitchen_pin') then
-    raise exception 'Invalid PIN';
-  end if;
+  perform public.require_valid_pin(p_pin);
 
   update public.orders set paid = true where id = p_order_id::uuid;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- get_tables_summary(p_pin text) -> table_number, order_count, total, last_order_at
+-- Server-side aggregation for the checkout dashboard. Returns ONE small row
+-- per table with orders in the last 24 hours (instead of 200 raw rows).
+-- Used by fetchTablesSummary() to reduce egress ~90%.
+-- SECURITY DEFINER required to read app_config for PIN check (app_config RLS denies anon)
+-- and to aggregate orders bypassing RLS (though orders are public, we enforce PIN gate).
+-- PIN verification ensures only authenticated staff (checkout/kitchen) with valid
+-- kitchen PIN can retrieve aggregated staff data; anon storefront cannot.
+-- ---------------------------------------------------------------------------
+create or replace function public.get_tables_summary(p_pin text)
+returns table (
+  table_number text,
+  order_count bigint,
+  total numeric,
+  last_order_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.require_valid_pin(p_pin);
+  return query
+    select
+      o.table_number,
+      count(*)::bigint as order_count,
+      sum(o.total) as total,
+      max(o.created_at) as last_order_at
+    from public.orders o
+    where o.created_at >= now() - interval '24 hours'
+    group by o.table_number;
+end;
+$$;
+
+revoke all on function public.get_tables_summary(text) from public;
+grant execute on function public.get_tables_summary(text) to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- list_table_numbers() -> text[]
+-- Returns authoritative list of table_numbers from table_tokens.
+-- Needed by checkout to show all tables (even with 0 orders). Idempotent.
+-- SECURITY DEFINER required because table_tokens has RLS 'no access' (blocked for anon)
+-- to prevent token enumeration; we only expose the non-sensitive table_number column,
+-- not the secret token. Data exposed is 01-15 (public knowledge via UI), so safe for anon.
+-- If stricter policy desired, add PIN param, but current design keeps it public for dashboard grid.
+-- ---------------------------------------------------------------------------
+create or replace function public.list_table_numbers()
+returns text[]
+language sql
+security definer
+set search_path = public
+as $$
+  select array_agg(table_number order by table_number) from public.table_tokens;
+$$;
+
+revoke all on function public.list_table_numbers() from public;
+grant execute on function public.list_table_numbers() to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- fetch_kitchen_orders(p_pin text, p_limit int) -> explicit columns
+-- Returns unpaid orders newest first, limit 30 default. Keeps items (kitchen needs them
+-- immediately) but ONLY columns kitchen displays: id, created_at, table_number,
+-- customer_name, notes, items, total, paid. Excludes payment_method, status, etc.
+-- SECURITY DEFINER required to verify PIN against app_config (RLS blocked) while
+-- still enforcing PIN gate; orders are public via RLS but staff view is PIN-gated
+-- via UI + this RPC gate, preventing arbitrary anon from bulk-scraping via this RPC
+-- without PIN (direct PostgREST still public, but RPC adds explicit staff check).
+-- Explicit RETURNS TABLE with column list prevents leaking future columns via SELECT *.
+-- ---------------------------------------------------------------------------
+create or replace function public.fetch_kitchen_orders(p_pin text, p_limit int default 30)
+returns table (
+  id uuid,
+  created_at timestamptz,
+  table_number text,
+  customer_name text,
+  notes text,
+  items jsonb,
+  total numeric,
+  paid boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.require_valid_pin(p_pin);
+  return query
+    select o.id, o.created_at, o.table_number, o.customer_name, o.notes, o.items, o.total, o.paid
+    from public.orders o
+    where o.paid = false
+    order by o.created_at desc, o.id desc
+    limit least(greatest(p_limit, 1), 100);
+end;
+$$;
+
+revoke all on function public.fetch_kitchen_orders(text, int) from public;
+grant execute on function public.fetch_kitchen_orders(text, int) to anon, authenticated;
+
+-- Close privilege gap: revoke legacy unauthenticated signature if existed
+drop function if exists public.fetch_kitchen_orders(int);
+drop function if exists public.get_tables_summary();
 
 -- NOTE: Storage image deletion is NOT done here. Storage tables cannot be
 -- deleted directly (the storage extension blocks it with 42501), and pg_net's

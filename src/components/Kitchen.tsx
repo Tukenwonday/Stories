@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Clock, Lock, SlidersHorizontal } from "lucide-react"
 import type { Lang } from "../types"
 import { LangContext } from "../lang-context"
-import { supabase, verifyKitchenPin } from "../lib/supabase"
+import { supabase, verifyKitchenPin, fetchKitchenOrders } from "../lib/supabase"
 import { kitchenStrings } from "../kitchen-i18n"
 import MenuEditor from "./MenuEditor"
 
@@ -130,27 +130,21 @@ export default function Kitchen() {
     }
   }
 
-  const load = useCallback(async () => {
-    if (!supabase) {
-      setLoading(false)
-      setError("Something went wrong. Please try again.")
-      return
-    }
+  // Phase 4 & 5: kitchen optimization — keep items (cooks need them immediately),
+  // prune to displayed columns (drops payment_method), limit 30 newest-first,
+  // with pagination guard so active orders never silently hidden.
+  const KITCHEN_PAGE_SIZE = 30
+  const [displayLimit, setDisplayLimit] = useState(KITCHEN_PAGE_SIZE)
+  const [hasMore, setHasMore] = useState(false)
+
+  const load = useCallback(async (limit = KITCHEN_PAGE_SIZE) => {
     try {
-      const { data, error: err } = await supabase
-        .from("orders")
-        .select("id, created_at, table_number, customer_name, notes, payment_method, items, total, paid")
-        .eq("paid", false)
-        .order("created_at", { ascending: false })
-        .limit(50)
-      if (err) {
-        setError(err.message)
-      } else {
-        setOrders((data ?? []) as KitchenOrder[])
-        setError(null)
-      }
-    } catch {
-      setError("Network error")
+      const data = await fetchKitchenOrders(limit)
+      setOrders((data ?? []) as KitchenOrder[])
+      setHasMore((data ?? []).length >= limit && limit < 100)
+      setError(null)
+    } catch (e: any) {
+      setError(e?.message ?? "Network error")
     } finally {
       setLoading(false)
     }
@@ -159,7 +153,7 @@ export default function Kitchen() {
   useEffect(() => {
     const client = supabase
     if (!authed || !client) return
-    load()
+    load(displayLimit)
 
     const pendingRowsRef = { current: [] as KitchenOrder[] }
     const flushTimerRef = { current: null as ReturnType<typeof setTimeout> | null }
@@ -175,7 +169,11 @@ export default function Kitchen() {
       setOrders((prev) => {
         const seen = new Set(prev.map((o) => o.id))
         const fresh = rows.filter((r) => !seen.has(r.id))
-        return [...fresh, ...prev].slice(0, 50)
+        const merged = [...fresh, ...prev].slice(0, displayLimit)
+        // If we hit limit exactly, there may be more unpaid orders beyond it —
+        // signal hasMore so "Load more" appears instead of silently hiding.
+        if (merged.length >= displayLimit && displayLimit < 100) setHasMore(true)
+        return merged
       })
       playNewOrderChime()
     }
@@ -222,7 +220,7 @@ export default function Kitchen() {
       channelRef.current = null
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current)
     }
-  }, [authed, load])
+  }, [authed, load, displayLimit])
 
   if (!authed) {
     return (
@@ -459,6 +457,25 @@ export default function Kitchen() {
                 })
                 return items
               })()}
+              {hasMore && (
+                <div className="mt-6 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = Math.min(displayLimit + 30, 100)
+                      setDisplayLimit(next)
+                      setLoading(true)
+                      load(next)
+                    }}
+                    className="rounded-full border border-gold/40 bg-gold/10 px-6 py-3 text-sm font-bold text-gold active:bg-gold/20"
+                  >
+                    Load more ({orders.length} / {displayLimit}+)
+                  </button>
+                </div>
+              )}
+              {displayLimit >= 100 && hasMore && (
+                <p className="mt-3 text-center text-xs text-muted">Showing 100 most recent unpaid orders. Older active orders require pagination.</p>
+              )}
             </>
           )}
           </main>
