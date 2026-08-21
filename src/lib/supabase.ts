@@ -229,8 +229,8 @@ async function fetchPublishedMenu(): Promise<MenuData> {
   }
 
   const response = await fetch(`${R2_PUBLIC_URL}/menu.json`, {
-    cache: "force-cache",
-    headers: { Accept: "application/json" },
+    cache: "no-store",
+    headers: { Accept: "application/json", "Cache-Control": "no-cache" },
   })
   if (!response.ok) {
     throw new Error(GENERIC_ERROR)

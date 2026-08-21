@@ -36,11 +36,14 @@ export default function App() {
   const { canOrder, tableNumber, token, resolving, tokenInvalid, expired } = useTableSession()
 
   // Use React Query for menu fetching with deduplication & caching
+  // staleTime 30s so kitchen availability toggles appear quickly without hard reload
   const { data: menuData, error: menuError, isLoading } = useQuery({
     queryKey: [...queryKeys.menu, lang],
     queryFn: () => fetchMenu({ lang }),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   useEffect(() => {

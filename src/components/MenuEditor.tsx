@@ -592,6 +592,11 @@ function ItemEditModal({
         mode === "create"
           ? await insertMenuItem(pin, { id: item.id, category: form.category, ...fields })
           : await updateMenuItem(pin, item.id, fields)
+      if (res.warning) {
+        setSaveError(res.warning)
+        if (uploadedPath) await deleteStorageObject(uploadedPath)
+        return
+      }
       if (res.ok) {
         // Clean up old storage object if image changed
         if (oldImagePath && oldImagePath !== imageToSave) {
@@ -1117,6 +1122,10 @@ function ItemCard({
       })
       if (!res.ok) {
         setAvailabilityError(res.error ?? t("availabilityUpdateFailed"))
+        return
+      }
+      if (res.warning) {
+        setAvailabilityError(res.warning)
         return
       }
       onAvailabilityUpdated(item.id, nextAvailable)

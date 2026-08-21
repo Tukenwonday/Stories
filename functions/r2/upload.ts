@@ -43,13 +43,21 @@ export const onRequestPost: PagesFunction = async (context) => {
       return json({ error: "Too many upload attempts. Please try again later." }, 429)
     }
 
-    const SUPABASE_URL = (context.env as { SUPABASE_URL?: string }).SUPABASE_URL
-    const SUPABASE_ANON_KEY = (context.env as { SUPABASE_ANON_KEY?: string }).SUPABASE_ANON_KEY
-    const R2_ACCOUNT_ID = (context.env as { R2_ACCOUNT_ID?: string }).R2_ACCOUNT_ID
-    const R2_ACCESS_KEY_ID = (context.env as { R2_ACCESS_KEY_ID?: string }).R2_ACCESS_KEY_ID
-    const R2_SECRET_ACCESS_KEY = (context.env as { R2_SECRET_ACCESS_KEY?: string }).R2_SECRET_ACCESS_KEY
-    const R2_BUCKET = (context.env as { R2_BUCKET_NAME?: string }).R2_BUCKET_NAME || "menu-images"
-    const R2_PUBLIC_URL = (context.env as { R2_PUBLIC_URL?: string }).R2_PUBLIC_URL
+    const env = context.env as Record<string, unknown>
+    function envValue(...keys: string[]): string {
+      for (const k of keys) {
+        const v = env[k]
+        if (typeof v === "string" && v.trim()) return v.trim()
+      }
+      return ""
+    }
+    const SUPABASE_URL = envValue("SUPABASE_URL", "VITE_SUPABASE_URL")
+    const SUPABASE_ANON_KEY = envValue("SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY")
+    const R2_ACCOUNT_ID = envValue("R2_ACCOUNT_ID", "VITE_R2_ACCOUNT_ID")
+    const R2_ACCESS_KEY_ID = envValue("R2_ACCESS_KEY_ID", "VITE_R2_ACCESS_KEY_ID")
+    const R2_SECRET_ACCESS_KEY = envValue("R2_SECRET_ACCESS_KEY", "VITE_R2_SECRET_ACCESS_KEY")
+    const R2_BUCKET = envValue("R2_BUCKET_NAME", "VITE_R2_BUCKET_NAME") || "menu-images"
+    const R2_PUBLIC_URL = envValue("R2_PUBLIC_URL", "VITE_R2_PUBLIC_URL")
 
     const missing: string[] = []
     if (!SUPABASE_URL) missing.push("SUPABASE_URL")

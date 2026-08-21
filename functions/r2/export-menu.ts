@@ -1,7 +1,7 @@
 import { formatMenuPayload, type CategoryRow, type MenuRow } from "../_shared/menu-json"
 import { signedR2Request } from "../_shared/r2-s3"
 
-const MENU_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=30"
+const MENU_CACHE_CONTROL = "public, max-age=10, must-revalidate"
 const MENU_COLUMNS = "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates"
 const CATEGORY_COLUMNS = "id,label_en,label_ar"
 const RESPONSE_HEADERS = {
@@ -52,8 +52,8 @@ export const onRequestPost: PagesFunction = async (context) => {
     const SUPABASE_ANON_KEY = envValue(env, "SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY")
     const SUPABASE_SERVICE_ROLE_KEY = envValue(env, "SUPABASE_SERVICE_ROLE_KEY", "VITE_SUPABASE_SERVICE_ROLE_KEY")
     const R2_ACCOUNT_ID = envValue(env, "R2_ACCOUNT_ID", "VITE_R2_ACCOUNT_ID")
-    const R2_ACCESS_KEY_ID = envValue(env, "R2_ACCESS_KEY_ID")
-    const R2_SECRET_ACCESS_KEY = envValue(env, "R2_SECRET_ACCESS_KEY")
+    const R2_ACCESS_KEY_ID = envValue(env, "R2_ACCESS_KEY_ID", "VITE_R2_ACCESS_KEY_ID")
+    const R2_SECRET_ACCESS_KEY = envValue(env, "R2_SECRET_ACCESS_KEY", "VITE_R2_SECRET_ACCESS_KEY")
     const R2_BUCKET = envValue(env, "R2_BUCKET_NAME", "VITE_R2_BUCKET_NAME") || "menu-images"
     const R2_PUBLIC_URL = envValue(env, "R2_PUBLIC_URL", "VITE_R2_PUBLIC_URL")
 
@@ -105,7 +105,7 @@ export const onRequestPost: PagesFunction = async (context) => {
     }, {
       method: "PUT",
       key: "menu.json",
-      body: bodyBytes.buffer,
+      body: bodyBytes.buffer.slice(bodyBytes.byteOffset, bodyBytes.byteOffset + bodyBytes.byteLength),
       contentType: "application/json",
       cacheControl: MENU_CACHE_CONTROL,
     })
