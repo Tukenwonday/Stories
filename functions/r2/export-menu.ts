@@ -90,7 +90,7 @@ export const onRequestPost: PagesFunction = async (context) => {
       fetch(`${SUPABASE_URL}/rest/v1/categories?select=${CATEGORY_COLUMNS}&order=sort_order.asc`, {
         headers: supabaseHeaders,
       }).then((response) => readJson<CategoryRow[]>(response)),
-      fetch(`${SUPABASE_URL}/rest/v1/menu?select=${MENU_COLUMNS}`, {
+      fetch(`${SUPABASE_URL}/rest/v1/menu?select=${MENU_COLUMNS}&order=created_at.asc&order=id.asc`, {
         headers: supabaseHeaders,
       }).then((response) => readJson<MenuRow[]>(response)),
     ])

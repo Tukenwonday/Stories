@@ -318,6 +318,8 @@ export async function fetchMenu(options: FetchMenuOptions = false): Promise<Menu
   const menuQuery = supabase
     .from("menu")
     .select(menuColumns)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
     .limit(200)
   if (!includeUnavailable) {
     menuQuery.eq("is_available", true)
