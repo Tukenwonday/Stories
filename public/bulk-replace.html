@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bulk Image Replace — Stories Resto Cafe</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@700;800&display=swap');
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Space Grotesk',System-ui,Arial;background:#f8f6f3;color:#111;
+    background-image:
+      linear-gradient(rgba(0,0,0,.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,.06) 1px, transparent 1px),
+      radial-gradient(ellipse at 15% 20%, rgba(255,192,203,.35) 0%, transparent 45%),
+      radial-gradient(ellipse at 80% 15%, rgba(186,230,253,.35) 0%, transparent 40%),
+      radial-gradient(ellipse at 70% 85%, rgba(253,224,71,.30) 0%, transparent 45%),
+      radial-gradient(ellipse at 10% 85%, rgba(167,243,208,.30) 0%, transparent 40%);
+    background-size:32px 32px, 32px 32px, auto, auto, auto, auto;
+  }
+  /* brutalist header */
+  .topbar{position:sticky;top:0;z-index:20;background:#000;border-bottom:4px solid #facc15;box-shadow:0 4px 0 rgba(0,0,0,.2)}
+  .topbar-inner{max-width:1150px;margin:0 auto;padding:14px 18px 0 18px}
+  .brand{color:#facc15;font-family:'Archivo Black',sans-serif;font-size:13px;letter-spacing:.16em;text-transform:uppercase;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .brand small{color:#fff;letter-spacing:.08em;font-size:11px;opacity:.7}
+  .tabs{display:flex;gap:10px;flex-wrap:wrap;padding:14px 0 14px 0;overflow:visible}
+  .tab{border:2px solid #facc15;color:#facc15;background:#000;padding:9px 14px;font-weight:900;font-size:12px;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;box-shadow:3px 3px 0 rgba(250,204,21,.3);transition:all .08s}
+  .tab.active{background:#facc15;color:#000;border-color:#000;box-shadow:4px 4px 0 #000;transform:translate(-1px,-1px)}
+  .tab:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 #000}
+  .wrap{max-width:1150px;margin:0 auto;padding:18px;display:flex;flex-direction:column;gap:16px}
+  .card-brutal{background:#fff;border:3px solid #000;box-shadow:6px 6px 0 #000;border-radius:0;padding:16px;position:relative}
+  .card-brutal.blue-top{border-top:6px solid #60a5fa}
+  .card-title{font-family:'Archivo Black',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .pill-brutal{display:inline-block;background:#facc15;border:2px solid #000;color:#000;font-weight:900;font-size:11px;letter-spacing:.07em;padding:5px 10px;box-shadow:2px 2px 0 #000}
+  .pill-brutal.ok{background:#86efac}
+  .pill-brutal.warn{background:#fde68a}
+  .pill-brutal.muted{background:#fff;color:#111}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  label span{display:block;font-family:'Archivo Black',sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+  input{width:100%;background:#fff;border:3px solid #000;padding:12px 12px;font-size:14px;font-weight:800;outline:none;box-shadow:3px 3px 0 #000}
+  input:focus{border-color:#60a5fa}
+  .btn-brutal{background:#facc15;color:#000;border:3px solid #000;padding:11px 18px;font-weight:900;font-size:13px;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;box-shadow:4px 4px 0 #000;transition:all .08s}
+  .btn-brutal:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #000}
+  .btn-brutal:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:3px 3px 0 #000}
+  .btn-white{background:#fff;border:3px solid #000;box-shadow:3px 3px 0 #000;font-weight:900;text-transform:uppercase;letter-spacing:.06em;padding:11px 16px;cursor:pointer}
+  .btn-danger{background:#fecaca;border:3px solid #000;box-shadow:3px 3px 0 #000;font-weight:900;padding:9px 12px;cursor:pointer}
+  .section-head{font-family:'Archivo Black',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:18px;border-bottom:3px solid #000;padding-bottom:8px;display:flex;align-items:center;gap:12px}
+  .section-head i{flex:1;height:3px;background:#000}
+  .itemGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:1050px){.itemGrid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:650px){.itemGrid{grid-template-columns:1fr}}
+  .item{background:#fff;border:3px solid #000;box-shadow:6px 6px 0 #000;border-top:6px solid #60a5fa;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:260px}
+  .item .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .item b{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:13px;letter-spacing:.04em;line-height:1.2}
+  .item small{font-size:12px;font-weight:700;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .thumb-wrap{border:3px solid #000;background:#fff;aspect-ratio:16/10;height:auto;min-height:150px;display:grid;place-items:center;overflow:hidden;position:relative}
+  .thumb-wrap img{width:100%;height:100%;object-fit:contain;object-position:center;background:#fff;display:block;padding:4px}
+  .thumb-placeholder{font-family:'Archivo Black',sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.5}
+  .meta-price{font-weight:900;font-size:13px}
+  .meta-price s{opacity:.5}
+  .code{font-family:ui-monospace,monospace;font-size:11px;background:#fff;border:2px solid #000;padding:2px 4px;word-break:break-all}
+  .progress{height:16px;background:#fff;border:3px solid #000;box-shadow:3px 3px 0 #000;overflow:hidden}
+  .progress div{height:100%;background:#facc15;width:0%;transition:width .3s;border-right:3px solid #000}
+  .log{white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:12px;background:#fff;border:3px solid #000;box-shadow:4px 4px 0 #000;padding:12px;max-height:260px;overflow:auto}
+  .notice{border:3px solid #000;box-shadow:3px 3px 0 #000;padding:10px 12px;font-weight:800;font-size:12px;background:#fff}
+  .notice.info{border-top:6px solid #60a5fa}
+  .notice.warn2{background:#fef9c3;border-top:6px solid #facc15}
+  .notice.err{background:#fecaca;border-top:6px solid #ef4444}
+  .details{font-family:'Archivo Black',sans-serif;font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">BULK IMAGE REPLACE <small>one-time · grouped · lazy · 800px webp 0.75</small> <span class="pill-brutal" id="stagedPill">STAGED: 0</span></div>
+    <div id="tabs" class="tabs"></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- PIN ONLY -->
+  <div class="card-brutal blue-top" style="display:flex;flex-direction:column;gap:12px">
+    <div class="card-title">KITCHEN ACCESS <span class="pill-brutal muted" id="pinStatus">PIN NOT CHECKED</span></div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end">
+      <label style="flex:1"><span>Kitchen PIN</span><input id="cfgPin" type="password" placeholder="Enter PIN"></label>
+      <button class="btn-brutal" id="btnVerifyPin">Verify PIN</button>
+    </div>
+    <div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.6">Same-origin: open <code class="code">https://stories-7rn.pages.dev/bulk-replace.html</code> → no CORS. Hardcoded Supabase + R2 from <code class="code">.env</code>.</div>
+  </div>
+
+  <!-- Categories status -->
+  <div class="card-brutal">
+    <div class="row" style="justify-content:space-between">
+      <b style="font-family:'Archivo Black',sans-serif;letter-spacing:.08em;text-transform:uppercase;font-size:12px">Categories</b>
+      <span class="pill-brutal muted" id="catCount">NOT LOADED</span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn-brutal" id="btnLoadCats">Load categories</button>
+      <button class="btn-white" id="btnReloadCats">Reload</button>
+      <span class="pill-brutal muted" id="catStatus">IDLE</span>
+    </div>
+    <div id="catInfo" style="margin-top:8px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.6"></div>
+  </div>
+
+  <!-- Items -->
+  <div>
+    <div class="section-head">ITEMS IN CATEGORY <i></i> <span class="pill-brutal" id="itemCount">—</span></div>
+    <div id="activeCatLabel" style="margin:8px 0 10px 0;font-weight:900;text-transform:uppercase;letter-spacing:.06em;font-size:12px"></div>
+    <div id="items" class="itemGrid"></div>
+    <div id="itemsStatus" style="margin-top:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:11px;opacity:.6"></div>
+  </div>
+
+  <!-- Save All -->
+  <div class="card-brutal">
+    <div class="card-title">SAVE ALL <span class="pill-brutal warn" style="font-size:10px">STAGED LOCAL UNTIL SAVE ALL → 1× PUT R2/menU.json</span></div>
+    <div class="progress" style="margin:12px 0"><div id="progressBar"></div></div>
+    <div class="row">
+      <button class="btn-brutal" id="btnSaveAll" disabled>Save All (0 staged)</button>
+      <button class="btn-white" id="btnClearStaged">Clear staged</button>
+      <button class="btn-white" id="btnResume" style="display:none">Resume</button>
+      <span class="pill-brutal muted" id="saveStatus">IDLE</span>
+    </div>
+    <div id="resumeBox" class="notice warn2" style="display:none;margin-top:10px"></div>
+    <div id="publishBox" class="notice info" style="display:none;margin-top:10px"></div>
+    <div class="log" id="log" style="margin-top:12px">Log: ready.
+- Lazy per-category fetch (not all 130) → egress safe.
+- Upload compresses locally 800px webp 0.75 then staged.
+- Save All sequential, respects 30/10min, 1× publish + delete old svgs.</div>
+  </div>
+
+</div>
+
+<script>
+const HARD_SUPABASE_URL = "https://doinkehdvtvqzcikwwos.supabase.co";
+const HARD_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvaW5rZWhkdnR2cXpjaWt3d29zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NzI0NzcsImV4cCI6MjEwMTQ0ODQ3N30.GG8nEnTA5I7rcy3YpnK0Wx2Iz2mScns4exgfPBsqgqE";
+const HARD_R2_PUBLIC_URL = "https://pub-673fc54195824933884d028194ebe1ca.r2.dev";
+const HARD_PAGES_BASE = location.hostname.includes("pages.dev") ? location.origin : (location.hostname==="localhost"||location.hostname==="127.0.0.1" ? location.origin : "https://stories-7rn.pages.dev");
+
+const MAX_DIMENSION = 800;
+const WEBP_QUALITY = 0.75;
+const FALLBACK_IMAGE = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+const $ = s => document.querySelector(s);
+const cfgPin = $("#cfgPin");
+const pinStatus = $("#pinStatus"), catCount=$("#catCount"), catStatus=$("#catStatus"), tabs=$("#tabs"), catInfo=$("#catInfo");
+const activeCatLabel=$("#activeCatLabel"), itemsEl=$("#items"), itemsStatus=$("#itemsStatus"), itemCount=$("#itemCount");
+const stagedPill=$("#stagedPill"), btnSaveAll=$("#btnSaveAll"), saveStatus=$("#saveStatus"), progressBar=$("#progressBar"), logEl=$("#log");
+const resumeBox=$("#resumeBox"), publishBox=$("#publishBox"), btnResume=$("#btnResume");
+
+let categories = [];
+let categoryItems = new Map();
+let activeCatId = null;
+let staged = new Map();
+let pendingDeletes = [];
+let failed = [];
+let resumeIndex = 0;
+let isSaving = false;
+let rateLimitResetAt = 0;
+let timerInt = null;
+
+function log(msg){
+  const t = new Date().toLocaleTimeString();
+  logEl.textContent += `\n[${t}] ${msg}`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function getCfg(){
+  return {
+    url: HARD_SUPABASE_URL,
+    anon: HARD_SUPABASE_ANON_KEY,
+    r2: HARD_R2_PUBLIC_URL,
+    pages: HARD_PAGES_BASE,
+    pin: cfgPin.value.trim()
+  };
+}
+function buildPublicImageUrl(storagePath){
+  const R2_PUBLIC_URL = getCfg().r2;
+  if(!R2_PUBLIC_URL) return FALLBACK_IMAGE;
+  const clean = storagePath.trim().split("?")[0].split("#")[0];
+  if(clean.startsWith(R2_PUBLIC_URL)) return clean;
+  if(!/^https?:\/\//i.test(clean)){
+    const path = clean.replace(/^\/+/, "");
+    return `${R2_PUBLIC_URL}/${path}`;
+  }
+  const marker = "/storage/v1/object/public/menu-images/";
+  const idx = clean.indexOf(marker);
+  if(idx !== -1){
+    const path = clean.slice(idx + marker.length).replace(/^\/+/, "");
+    return `${R2_PUBLIC_URL}/${path}`;
+  }
+  return FALLBACK_IMAGE;
+}
+function extractStoragePath(url){
+  if(!url) return "";
+  const R2_PUBLIC_URL = getCfg().r2;
+  const r2Marker = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/` : "";
+  const pagesMarker = "https://stories-7rn.pages.dev/storage/v1/object/public/menu-images/";
+  const supabaseMarker = "/storage/v1/object/public/menu-images/";
+  if(!/^https?:\/\//i.test(url)) return url;
+  const r2Idx = r2Marker ? url.indexOf(r2Marker) : -1;
+  if(r2Idx !== -1) return url.slice(r2Idx + r2Marker.length).split("?")[0].split("#")[0];
+  const pIdx = url.indexOf(pagesMarker);
+  if(pIdx !== -1) return url.slice(pIdx + pagesMarker.length).split("?")[0].split("#")[0];
+  const sIdx = url.indexOf(supabaseMarker);
+  if(sIdx !== -1) return url.slice(sIdx + supabaseMarker.length).split("?")[0].split("#")[0];
+  return url;
+}
+function extractBucketPath(value){
+  if(!value) return null;
+  if(!/^https?:\/\//i.test(value)) return value || null;
+  const marker = "/menu-images/";
+  const idx = value.indexOf(marker);
+  if(idx === -1) return null;
+  const rest = value.slice(idx + marker.length).split("?")[0].split("#")[0];
+  return rest || null;
+}
+function compressImage(file, maxDimension=MAX_DIMENSION){
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      URL.revokeObjectURL(url);
+      let {width,height} = img;
+      if(width > maxDimension || height > maxDimension){
+        const scale = Math.min(maxDimension/width, maxDimension/height);
+        width = Math.max(1, Math.round(width*scale));
+        height = Math.max(1, Math.round(height*scale));
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if(!ctx){ reject(new Error("Canvas not supported")); return; }
+      ctx.drawImage(img,0,0,width,height);
+      canvas.toBlob((blob)=>{
+        if(!blob){ reject(new Error("Image compression failed")); return; }
+        const type = blob.type;
+        const ext = type.includes("webp") ? "webp" : type.includes("png") ? "png" : "jpg";
+        resolve({blob, ext});
+      },"image/webp", WEBP_QUALITY);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error("Could not read image file")); };
+    img.src = url;
+  });
+}
+async function verifyPin(){
+  const {url, anon, pin} = getCfg();
+  if(!pin){ pinStatus.textContent="PIN REQUIRED"; pinStatus.className="pill-brutal warn"; return; }
+  pinStatus.textContent="VERIFYING...";
+  try{
+    const res = await fetch(`${url}/rest/v1/rpc/verify_kitchen_pin`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json", apikey: anon, Authorization:`Bearer ${anon}`},
+      body: JSON.stringify({p_pin: pin})
+    });
+    const data = await res.json();
+    if(res.ok && data===true){ pinStatus.textContent="PIN OK"; pinStatus.className="pill-brutal ok"; sessionStorage.setItem("kitchenPin", pin); log("PIN verified"); }
+    else { pinStatus.textContent="INVALID PIN"; pinStatus.className="pill-brutal warn"; log("PIN invalid: "+JSON.stringify(data)); }
+  }catch(e){ pinStatus.textContent="VERIFY FAILED"; pinStatus.className="pill-brutal warn"; log("Verify error: "+e.message); }
+}
+async function fetchCategories(){
+  const {url, anon} = getCfg();
+  catStatus.textContent="LOADING...";
+  try{
+    const res = await fetch(`${url}/rest/v1/categories?select=id,label_en,label_ar&order=sort_order.asc`,{
+      headers:{apikey: anon, Authorization:`Bearer ${anon}`}
+    });
+    if(!res.ok) throw new Error(await res.text());
+    categories = await res.json();
+    catCount.textContent = `${categories.length} CATEGORIES`;
+    catStatus.textContent = `LOADED ${categories.length}`;
+    log(`Categories loaded: ${categories.length}`);
+    renderTabs();
+  }catch(e){
+    catStatus.textContent="FAILED";
+    log("Categories error: "+e.message);
+  }
+}
+function renderTabs(){
+  tabs.innerHTML="";
+  categories.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="tab"+(c.id===activeCatId?" active":"");
+    b.textContent=`${c.label_en} — ${c.label_ar}`;
+    b.onclick=()=> selectCategory(c.id);
+    tabs.appendChild(b);
+  });
+  if(!activeCatId && categories[0]) selectCategory(categories[0].id);
+  catInfo.textContent = `GROUPED BY CATEGORY · LAZY FETCH — NOT FETCHING ALL AT ONCE`;
+}
+async function selectCategory(catId){
+  activeCatId = catId;
+  renderTabs();
+  const cat = categories.find(x=>x.id===catId);
+  activeCatLabel.textContent = cat ? `${cat.id} — ${cat.label_en} / ${cat.label_ar}` : "";
+  if(categoryItems.has(catId)){
+    renderItems(catId);
+    return;
+  }
+  itemsEl.innerHTML="<div style='font-weight:900;text-transform:uppercase;letter-spacing:.06em'>LOADING ITEMS...</div>";
+  itemsStatus.textContent="FETCHING...";
+  const {url, anon} = getCfg();
+  try{
+    const q = encodeURIComponent(catId);
+    const res = await fetch(`${url}/rest/v1/menu?select=id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates&category=eq.${q}`,{
+      headers:{apikey: anon, Authorization:`Bearer ${anon}`}
+    });
+    if(!res.ok) throw new Error(await res.text());
+    const rows = await res.json();
+    categoryItems.set(catId, rows);
+    log(`Category ${catId}: ${rows.length} items`);
+    renderItems(catId);
+  }catch(e){
+    itemsStatus.textContent="FETCH FAILED: "+e.message;
+    log("Items fetch error: "+e.message);
+  }
+}
+function renderItems(catId){
+  const rows = categoryItems.get(catId) || [];
+  itemCount.textContent = `${rows.length} ITEMS`;
+  itemsStatus.textContent = rows.length ? `SHOWING ${rows.length} (LAZY)` : "NO ITEMS";
+  itemsEl.innerHTML="";
+  rows.forEach(item=>{
+    const stagedInfo = staged.get(item.id);
+    const currentImg = stagedInfo ? stagedInfo.previewUrl : (item.image ? buildPublicImageUrl(item.image) : "");
+    const oldPathDisplay = item.image ? extractStoragePath(item.image) : "(no image)";
+    const card = document.createElement("div");
+    card.className="item";
+    card.innerHTML=`
+      <div class="top">
+        <b style="flex:1;min-width:0">${escapeHtml(item.title_en)}</b>
+        <button class="pill-brutal" style="font-size:10px;padding:4px 8px" disabled>DETAILS</button>
+      </div>
+      <small>${escapeHtml(item.title_ar)} · ${escapeHtml(item.id)}</small>
+      <div class="thumb-wrap">
+        ${currentImg ? `<img src="${currentImg}" alt="">` : `<span class="thumb-placeholder">NO IMAGE</span>`}
+      </div>
+      <div style="border-top:2px solid #000;padding-top:8px;margin-top:2px">
+        <div class="meta-price">${item.price} ILS ${item.is_available===false?'<span style="background:#fecaca;border:2px solid #000;padding:2px 4px">UNAVAILABLE</span>':''}</div>
+        <div style="font-size:11px;font-weight:800;letter-spacing:.04em;margin-top:4px;opacity:.7">CURRENT: <code class="code">${escapeHtml(oldPathDisplay)}</code></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          ${stagedInfo ? `<span style="background:#facc15;border:2px solid #000;padding:3px 6px;font-weight:900;font-size:11px;box-shadow:2px 2px 0 #000">STAGED → ${escapeHtml(stagedInfo.path)}</span>` : `<span style="background:#fff;border:2px solid #000;padding:3px 6px;font-weight:900;font-size:11px">NO CHANGE</span>`}
+        </div>
+        <div class="row" style="margin-top:10px">
+          <label class="btn-brutal" style="padding:8px 12px;font-size:11px;flex:1;text-align:center">
+            UPLOAD <input type="file" accept="image/*" style="display:none">
+          </label>
+          ${stagedInfo? `<button class="btn-danger" style="font-size:11px" data-clear="${item.id}">CLEAR</button>` : ""}
+        </div>
+        <div style="margin-top:6px;font-size:11px;font-weight:900" data-status="${item.id}">${stagedInfo? "STAGED" : "IDLE"}</div>
+        <div style="font-size:11px;font-weight:800;opacity:.7" data-msg="${item.id}"></div>
+      </div>
+    `;
+    const img = card.querySelector("img");
+    if(img){ img.onerror = ()=>{ img.style.display="none"; }; }
+    const fileInput = card.querySelector('input[type=file]');
+    fileInput.onchange = async (e)=>{
+      const f = e.target.files?.[0];
+      if(!f) return;
+      const statusEl = card.querySelector(`[data-status="${item.id}"]`);
+      try{
+        statusEl.textContent="COMPRESSING...";
+        log(`Compressing ${item.id}: ${f.name} ${(f.size/1024|0)}KB`);
+        const {blob, ext} = await compressImage(f);
+        const safeId = item.id.replace(/[^a-zA-Z0-9_-]/g,"").slice(0,80) || "misc";
+        const path = `dishes/${safeId}-${Date.now()}.${ext}`;
+        const previewUrl = URL.createObjectURL(blob);
+        const oldExisting = staged.get(item.id);
+        if(oldExisting?.previewUrl) URL.revokeObjectURL(oldExisting.previewUrl);
+        const oldPath = item.image ? (extractBucketPath(item.image) || extractStoragePath(item.image)) : null;
+        staged.set(item.id, {item, blob, ext, path, previewUrl, oldImage:item.image, oldPath, categoryId: catId});
+        log(`Staged ${item.id} → ${path} (${(blob.size/1024|0)}KB webp)`);
+        updateStagedUI();
+        renderItems(activeCatId);
+      }catch(err){
+        statusEl.textContent="ERROR";
+        log(`Compress failed ${item.id}: ${err.message}`);
+      }
+      e.target.value="";
+    };
+    const clearBtn = card.querySelector(`[data-clear="${item.id}"]`);
+    if(clearBtn) clearBtn.onclick=()=>{
+      const s = staged.get(item.id);
+      if(s?.previewUrl) URL.revokeObjectURL(s.previewUrl);
+      staged.delete(item.id);
+      log(`Cleared staged ${item.id}`);
+      updateStagedUI();
+      renderItems(activeCatId);
+    };
+    itemsEl.appendChild(card);
+  });
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+function updateStagedUI(){
+  stagedPill.textContent = `STAGED: ${staged.size}`;
+  btnSaveAll.textContent = `SAVE ALL (${staged.size} STAGED)`;
+  btnSaveAll.disabled = staged.size===0 || isSaving;
+  if(staged.size===0){ publishBox.style.display="none"; resumeBox.style.display="none"; btnResume.style.display="none"; }
+}
+async function saveAll(startFrom = resumeIndex){
+  const cfg = getCfg();
+  if(!cfg.pin){ alert("PIN required"); return; }
+  if(staged.size===0){ alert("No staged uploads"); return; }
+  if(isSaving) return;
+  isSaving = true;
+  updateStagedUI();
+  const entries = Array.from(staged.entries());
+  const total = entries.length;
+  let idx = startFrom;
+  failed = [];
+  if(startFrom===0) pendingDeletes = [];
+  saveStatus.textContent = `SAVING ${idx+1}/${total}...`;
+  btnSaveAll.disabled = true;
+  resumeBox.style.display="none";
+  publishBox.style.display="none";
+  log(`Save All started: ${total} staged, from ${idx}`);
+  for(; idx < total; idx++){
+    const [id, st] = entries[idx];
+    resumeIndex = idx;
+    const cardStatus = document.querySelector(`[data-status="${id}"]`);
+    const prog = ((idx)/total*100)|0;
+    progressBar.style.width = prog+"%";
+    saveStatus.textContent = `UPLOADING ${idx+1}/${total}: ${id}`;
+    if(cardStatus) cardStatus.textContent = "UPLOADING...";
+    log(`[${idx+1}/${total}] ${id} → ${st.path}`);
+    const form = new FormData();
+    form.append("pin", cfg.pin);
+    form.append("path", st.path);
+    form.append("file", st.blob, st.path.split("/").pop());
+    let upRes, upData;
+    try{
+      upRes = await fetch(`${cfg.pages}/r2/upload`, {method:"POST", body: form});
+      upData = await upRes.json().catch(()=>null);
+    }catch(e){ upRes={ok:false,status:0}; upData={error:e.message}; }
+    if(!upRes.ok || !upData?.ok){
+      const is429 = upRes.status===429 || (upData?.error||"").includes("Too many");
+      if(is429){
+        log(`RATE LIMITED at ${idx+1}/${total}`);
+        resumeBox.style.display="block";
+        rateLimitResetAt = Date.now() + 10*60*1000;
+        startResumeTimer();
+        btnResume.style.display="inline-block";
+        btnResume.textContent = `RESUME (${idx}/${total} DONE) — WAIT 10MIN`;
+        btnResume.disabled = true;
+        saveStatus.textContent = `RATE LIMITED — PAUSED AT ${idx}/${total}`;
+        isSaving = false; updateStagedUI();
+        if(cardStatus) cardStatus.textContent = "RATE LIMITED (PAUSED)";
+        return;
+      } else {
+        const err = upData?.error || `Upload failed ${upRes.status}`;
+        log(`Upload failed ${id}: ${err}`);
+        failed.push({id, error: err});
+        if(cardStatus) cardStatus.textContent = "UPLOAD FAILED";
+        continue;
+      }
+    }
+    const publicPath = upData.path || st.path;
+    log(`R2 uploaded ${id}: ${publicPath}`);
+    const rpcBody = {
+      p_pin: cfg.pin, p_id: id, p_title_en: st.item.title_en, p_title_ar: st.item.title_ar,
+      p_description_en: st.item.description_en, p_description_ar: st.item.description_ar,
+      p_price: Number(st.item.price), p_image: publicPath,
+      p_not_served_windows: st.item.not_served_windows || [], p_is_available: st.item.is_available, p_modifiers: st.item.modifiers || []
+    };
+    let rpcRes, rpcText;
+    try{
+      rpcRes = await fetch(`${cfg.url}/rest/v1/rpc/update_menu_item_secure`,{
+        method:"POST", headers:{"Content-Type":"application/json", apikey: cfg.anon, Authorization:`Bearer ${cfg.anon}`},
+        body: JSON.stringify(rpcBody)
+      });
+      rpcText = await rpcRes.text();
+    }catch(e){ rpcRes={ok:false}; rpcText=e.message; }
+    if(!rpcRes.ok){
+      log(`RPC failed ${id}: ${rpcText.slice(0,300)}`);
+      try{ await fetch(`${cfg.pages}/r2/delete`,{method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({pin: cfg.pin, path: publicPath})}); }catch{}
+      failed.push({id, error: rpcText.slice(0,300)});
+      if(cardStatus) cardStatus.textContent = "RPC FAILED";
+      continue;
+    }
+    log(`DB updated ${id}`);
+    if(st.oldPath && st.oldPath !== publicPath) pendingDeletes.push({oldPath: st.oldPath, newPath: publicPath, id});
+    if(cardStatus) cardStatus.textContent = "SAVED (PENDING PUBLISH)";
+    progressBar.style.width = ((idx+1)/total*100|0)+"%";
+    await new Promise(r=>setTimeout(r, 180));
+  }
+  progressBar.style.width = "100%";
+  saveStatus.textContent = `UPLOADS DONE: ${total - failed.length}/${total}`;
+  if(total - failed.length > 0){
+    publishBox.style.display="block";
+    publishBox.textContent = "PUBLISHING R2/menu.json (1×) VIA POST /r2/export-menu ...";
+    log(`Publishing via ${getCfg().pages}/r2/export-menu`);
+    try{
+      const pubRes = await fetch(`${getCfg().pages}/r2/export-menu`,{method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({pin: getCfg().pin})});
+      const pubData = await pubRes.json().catch(()=>null);
+      if(!pubRes.ok || !pubData?.ok){
+        const err = pubData?.error || `Publish failed ${pubRes.status}`;
+        publishBox.className="notice err"; publishBox.textContent = `PUBLISH FAILED: ${err}`;
+        log(`Publish failed: ${err}`);
+      } else {
+        publishBox.className="notice info"; publishBox.style.background="#dcfce7";
+        publishBox.textContent = `PUBLISHED: ${pubData.categories} CATEGORIES, ${pubData.items} ITEMS → ${pubData.publicUrl || (getCfg().r2 + "/menu.json")}`;
+        log(`Published OK: ${JSON.stringify(pubData)}`);
+        if(pendingDeletes.length){
+          log(`Deleting ${pendingDeletes.length} old images...`);
+          for(const {oldPath, id} of pendingDeletes){
+            try{
+              const delRes = await fetch(`${getCfg().pages}/r2/delete`,{method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({pin: getCfg().pin, path: oldPath})});
+              if(delRes.ok) log(`Deleted old ${id}: ${oldPath}`);
+              else log(`Delete failed ${id} ${oldPath}`);
+            }catch(e){ log(`Delete error ${id}: ${e.message}`); }
+            await new Promise(r=>setTimeout(r, 80));
+          }
+        }
+        for(const [id] of entries){ if(!failed.find(f=>f.id===id)){ const s=staged.get(id); if(s?.previewUrl) URL.revokeObjectURL(s.previewUrl); staged.delete(id); } }
+        updateStagedUI();
+        if(failed.length===0 && activeCatId){ categoryItems.delete(activeCatId); await selectCategory(activeCatId); }
+      }
+    }catch(e){ publishBox.className="notice err"; publishBox.textContent = "PUBLISH ERROR: "+e.message; log("Publish exception: "+e.message); }
+  }
+  isSaving = false; resumeIndex = total;
+  btnSaveAll.disabled = staged.size===0;
+  if(failed.length) log(`Done with ${failed.length} failures`);
+  else log("Save All complete");
+}
+function startResumeTimer(){
+  if(timerInt) clearInterval(timerInt);
+  timerInt = setInterval(()=>{
+    const left = Math.max(0, rateLimitResetAt - Date.now());
+    if(left<=0){ clearInterval(timerInt); resumeBox.textContent = "RATE LIMIT RESET — YOU CAN RESUME NOW"; btnResume.disabled = false; btnResume.textContent = `RESUME (${resumeIndex} DONE)`; return; }
+    const m = Math.floor(left/60000), s = Math.floor((left%60000)/1000);
+    resumeBox.textContent = `RATE LIMITED: 30 / 10MIN. UPLOADED ${resumeIndex}/${staged.size}. RESUME IN ${m}:${String(s).padStart(2,"0")} — DON'T RELOAD.`;
+    btnResume.textContent = `RESUME IN ${m}:${String(s).padStart(2,"0")}`;
+  }, 500);
+}
+$("#btnVerifyPin").onclick = verifyPin;
+$("#btnLoadCats").onclick = fetchCategories;
+$("#btnReloadCats").onclick = ()=>{ categories=[]; categoryItems.clear(); fetchCategories(); };
+$("#btnClearStaged").onclick = ()=>{
+  for(const [,s] of staged) if(s.previewUrl) URL.revokeObjectURL(s.previewUrl);
+  staged.clear(); pendingDeletes=[]; failed=[]; resumeIndex=0; progressBar.style.width="0%"; saveStatus.textContent="CLEARED"; updateStagedUI(); if(activeCatId) renderItems(activeCatId); log("Cleared all staged");
+};
+$("#btnSaveAll").onclick = ()=> saveAll(resumeIndex);
+$("#btnResume").onclick = ()=>{ $("#btnResume").disabled=true; resumeBox.textContent="RESUMING..."; saveAll(resumeIndex); };
+try{ const p=sessionStorage.getItem("kitchenPin"); if(p) $("#cfgPin").value=p; }catch{}
+log("Ready. Enter PIN → Verify → Load categories → Upload → Save All.");
+</script>
+</body>
+</html>
