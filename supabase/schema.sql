@@ -425,8 +425,6 @@ declare
   v_opt_price numeric;
   v_opt_label text;
   v_opt_label_ar text;
-  v_grp_label text;
-  v_grp_label_ar text;
 
   v_served jsonb;
   v_now_min integer;
@@ -496,14 +494,10 @@ begin
       v_opt_price := null;
       v_opt_label := null;
       v_opt_label_ar := null;
-      v_grp_label := null;
-      v_grp_label_ar := null;
       select coalesce((o.value->>'price')::numeric, 0),
              o.value->'label'->>'en',
-             o.value->'label'->>'ar',
-             g.value->'label'->>'en',
-             g.value->'label'->>'ar'
-      into v_opt_price, v_opt_label, v_opt_label_ar, v_grp_label, v_grp_label_ar
+             o.value->'label'->>'ar'
+      into v_opt_price, v_opt_label, v_opt_label_ar
       from jsonb_array_elements(v_menu.modifiers) g
       cross join jsonb_array_elements(g.value->'options') o
       where g.value->>'id' = v_gid and o.value->>'id' = v_oid;
@@ -511,11 +505,8 @@ begin
         raise exception 'Invalid modifier for item: %', v_menu.title_en;
       end if;
       v_unit := v_unit + v_opt_price;
+      -- P0 lean: keep only bilingual option labels + price for instant AR/EN toggle; drop group/group_ar/groupId/optionId (~37% saving)
       v_mods := v_mods || jsonb_build_object(
-        'groupId', v_gid,
-        'optionId', v_oid,
-        'group', v_grp_label,
-        'group_ar', v_grp_label_ar,
         'option', v_opt_label,
         'option_ar', v_opt_label_ar,
         'price', v_opt_price

@@ -56,7 +56,8 @@ interface KitchenOrderItem {
   title_ar?: string
   quantity: number
   unitPrice: number
-  modifiers: Array<{ group: string; group_ar?: string; option: string; option_ar?: string; price: number }>
+  // P0 lean: only option/option_ar + price persisted; legacy group/group_ar/groupId/optionId optional for backward compat with old orders
+  modifiers: Array<{ option: string; option_ar?: string; price: number; group?: string; group_ar?: string; groupId?: string; optionId?: string }>
 }
 
 interface KitchenOrder {
