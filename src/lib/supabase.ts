@@ -258,9 +258,11 @@ async function fetchPublishedMenu(): Promise<MenuData> {
     throw new Error(GENERIC_ERROR)
   }
 
+  // Heavy anon traffic: rely on Cloudflare CDN (R2 cache-control 60s) + 120s staleTime in App.tsx.
+  // Default cache lets 304s serve from browser/CDN; avoid no-store which bypasses CDN and inflates egress.
   const response = await fetch(`${R2_PUBLIC_URL}/menu.json`, {
-    cache: "no-store",
-    headers: { Accept: "application/json", "Cache-Control": "no-cache" },
+    cache: "default",
+    headers: { Accept: "application/json" },
   })
   if (!response.ok) {
     throw new Error(GENERIC_ERROR)

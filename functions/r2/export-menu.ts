@@ -1,7 +1,7 @@
 import { formatMenuPayload, type CategoryRow, type MenuRow } from "../_shared/menu-json"
 import { signedR2Request } from "../_shared/r2-s3"
 
-const MENU_CACHE_CONTROL = "public, max-age=10, must-revalidate"
+const MENU_CACHE_CONTROL = "public, max-age=60, s-maxage=60, stale-while-revalidate=30"
 const MENU_COLUMNS = "id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates"
 const CATEGORY_COLUMNS = "id,label_en,label_ar"
 const RESPONSE_HEADERS = {
@@ -86,11 +86,12 @@ export const onRequestPost: PagesFunction = async (context) => {
       Authorization: `Bearer ${readKey}`,
     }
 
+    // Explicit limit 1000 prevents silent PostgREST default truncation (fails loud if >1000 items)
     const [categories, menuRows] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/categories?select=${CATEGORY_COLUMNS}&order=sort_order.asc`, {
+      fetch(`${SUPABASE_URL}/rest/v1/categories?select=${CATEGORY_COLUMNS}&order=sort_order.asc&limit=1000`, {
         headers: supabaseHeaders,
       }).then((response) => readJson<CategoryRow[]>(response)),
-      fetch(`${SUPABASE_URL}/rest/v1/menu?select=${MENU_COLUMNS}&order=created_at.asc&order=id.asc`, {
+      fetch(`${SUPABASE_URL}/rest/v1/menu?select=${MENU_COLUMNS}&order=created_at.asc&order=id.asc&limit=1000`, {
         headers: supabaseHeaders,
       }).then((response) => readJson<MenuRow[]>(response)),
     ])

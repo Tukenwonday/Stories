@@ -136,6 +136,8 @@ export default function Kitchen() {
   const KITCHEN_PAGE_SIZE = 30
   const [displayLimit, setDisplayLimit] = useState(KITCHEN_PAGE_SIZE)
   const [hasMore, setHasMore] = useState(false)
+  const displayLimitRef = { current: displayLimit } as { current: number }
+  displayLimitRef.current = displayLimit
 
   const load = useCallback(async (limit = KITCHEN_PAGE_SIZE) => {
     try {
@@ -163,16 +165,12 @@ export default function Kitchen() {
       if (pendingRowsRef.current.length === 0) return
       const rows = pendingRowsRef.current
       pendingRowsRef.current = []
-      // Group the burst into a single state update so a rush of orders only
-      // triggers one re-render. Id-dedup keeps rapid orders from stacking
-      // duplicates without ever dropping an order.
+      const limit = displayLimitRef.current
       setOrders((prev) => {
         const seen = new Set(prev.map((o) => o.id))
         const fresh = rows.filter((r) => !seen.has(r.id))
-        const merged = [...fresh, ...prev].slice(0, displayLimit)
-        // If we hit limit exactly, there may be more unpaid orders beyond it —
-        // signal hasMore so "Load more" appears instead of silently hiding.
-        if (merged.length >= displayLimit && displayLimit < 100) setHasMore(true)
+        const merged = [...fresh, ...prev].slice(0, limit)
+        if (merged.length >= limit && limit < 100) setHasMore(true)
         return merged
       })
       playNewOrderChime()
@@ -183,6 +181,27 @@ export default function Kitchen() {
       flushTimerRef.current = setTimeout(flush, 300)
     }
 
+    // Batch INSERT bursts via pendingRowsRef + 300ms flush; UPDATEs also filtered server-side
+    const pendingUpdateRef = { current: [] as KitchenOrder[] }
+    const flushUpdate = () => {
+      if (pendingUpdateRef.current.length === 0) return
+      const rows = pendingUpdateRef.current
+      pendingUpdateRef.current = []
+      const toRemove = new Set(rows.filter((r) => r.paid).map((r) => r.id))
+      const toUpsert = new Map(rows.filter((r) => !r.paid).map((r) => [r.id, r] as const))
+      setOrders((prev) => {
+        let next = prev.filter((o) => !toRemove.has(o.id))
+        next = next.map((o) => (toUpsert.has(o.id) ? (toUpsert.get(o.id) as KitchenOrder) : o))
+        return next
+      })
+    }
+    const scheduleUpdate = () => {
+      if ((flushUpdate as any)._timer) return
+      ;(flushUpdate as any)._timer = setTimeout(() => {
+        ;(flushUpdate as any)._timer = null
+        flushUpdate()
+      }, 300)
+    }
     const channel = client
       .channel("kitchen-orders")
       .on(
@@ -195,14 +214,20 @@ export default function Kitchen() {
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders" },
+        { event: "UPDATE", schema: "public", table: "orders", filter: "paid=eq.true" },
         (payload) => {
-          const row = payload.new as KitchenOrder
-          if (row.paid) {
-            setOrders((prev) => prev.filter((o) => o.id !== row.id))
-          } else {
-            setOrders((prev) => prev.map((o) => (o.id === row.id ? row : o)))
-          }
+          // Paid toggles only (filter server-side cuts ~95% unrelated UPDATE payloads)
+          pendingUpdateRef.current.push(payload.new as KitchenOrder)
+          scheduleUpdate()
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: "paid=eq.false" },
+        (payload) => {
+          // Note edits while still unpaid (e.g., customer_name fix) - rare but needed
+          pendingUpdateRef.current.push(payload.new as KitchenOrder)
+          scheduleUpdate()
         },
       )
       .subscribe((status) => {
@@ -219,8 +244,28 @@ export default function Kitchen() {
       client.removeChannel(channel)
       channelRef.current = null
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current)
+      if ((flushUpdate as any)._timer) clearTimeout((flushUpdate as any)._timer)
     }
-  }, [authed, load, displayLimit])
+  }, [authed, load])
+
+  // Fallback resync when realtime drops (mirrors Checkout): online/visibility with jitter
+  useEffect(() => {
+    if (!authed) return
+    const resyncTimeoutRef = { current: null as ReturnType<typeof setTimeout> | null }
+    const resync = () => {
+      if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
+      const jitter = Math.random() * 3000
+      resyncTimeoutRef.current = setTimeout(() => load(displayLimitRef.current), 5000 + jitter)
+    }
+    const onVisible = () => { if (document.visibilityState === "visible") resync() }
+    window.addEventListener("online", resync)
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      window.removeEventListener("online", resync)
+      document.removeEventListener("visibilitychange", onVisible)
+      if (resyncTimeoutRef.current) clearTimeout(resyncTimeoutRef.current)
+    }
+  }, [authed, load])
 
   if (!authed) {
     return (

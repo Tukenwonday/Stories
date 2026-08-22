@@ -1294,11 +1294,9 @@ export default function MenuEditor({ onBack }: { onBack: () => void }) {
         .map((item) => extractStoragePath(item.image!))
       const res = await deleteCategory(pin, id)
       if (res.ok) {
-        // Delete storage assets AFTER successful category deletion
-        for (const path of imagePaths) {
-          const del = await deleteStorageObject(path)
-          if (!del.ok) logError(del.error, "menu-editor delete-category-image")
-        }
+        // Parallel deletes to cut egress/await time vs serial loop (saves ~ N* RTT)
+        const results = await Promise.all(imagePaths.map((path) => deleteStorageObject(path)))
+        results.forEach((del) => { if (!del.ok) logError(del.error, "menu-editor delete-category-image") })
         setConfirmingDeleteCat(null)
         load()
       } else {

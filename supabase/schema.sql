@@ -95,7 +95,8 @@ create table if not exists public.app_config (
   value text not null
 );
 
--- PIN brute-force throttle log. Records every PIN attempt with client IP and success.
+-- PIN brute-force throttle log. Records FAILED attempts only (success=false) with client IP.
+-- Successful PINs are not logged to cut ~95% writes; throttle counts failures only.
 -- No RLS policies -> blocked for anon (service_role bypasses). Used only inside DEFINER functions.
 create table if not exists public.pin_attempts (
   id bigserial primary key,
@@ -126,6 +127,13 @@ create index if not exists idx_orders_paid_created on public.orders(created_at d
 -- and covers the simpler (table_number, created_at) queries. Replaces narrower index to avoid duplicate.
 drop index if exists public.idx_orders_table_created;
 create index if not exists idx_orders_table_created on public.orders(table_number, created_at desc, id desc);
+
+-- Throttle lookups: verify_kitchen_pin / require_valid_pin count failures per IP in last 15m
+-- Partial index keeps throttle fast after switching to failure-only logging
+create index if not exists idx_pin_attempts_ip_failed_at on public.pin_attempts(ip, attempted_at desc) where success = false;
+
+-- One-time purge of legacy success=true rows (logged before failure-only switch)
+delete from public.pin_attempts where success = true;
 
 -- =============================================================================
 -- 3. ROW LEVEL SECURITY
@@ -257,7 +265,7 @@ end;
 $$;
 select cron.schedule('cleanup-old-orders', '0 3 * * *', $$select public.cleanup_old_orders()$$);
 
--- Cleanup old pin attempts hourly (keep 24h window for throttle)
+-- Cleanup old pin attempts every 6h (keep 24h window for throttle) - failure-only logging keeps table tiny, hourly wake unnecessary
 do $$
 declare
   v_jobid bigint;
@@ -268,7 +276,7 @@ begin
   end if;
 end;
 $$;
-select cron.schedule('cleanup-pin-attempts', '0 * * * *', $$delete from public.pin_attempts where attempted_at < now() - interval '24 hours'$$);
+select cron.schedule('cleanup-pin-attempts', '0 */6 * * *', $$delete from public.pin_attempts where attempted_at < now() - interval '24 hours'$$);
 
 -- Helper: extract client IP from request headers (Supabase PostgREST)
 create or replace function public.client_ip()
@@ -288,9 +296,9 @@ $$;
 -- ---------------------------------------------------------------------------
 -- verify_kitchen_pin(text) -> boolean
 -- Compares the submitted PIN against the stored value in app_config.
--- Brute-force protection: logs every attempt with IP, blocks after 5 failures
+-- Brute-force protection: logs FAILED attempts only, blocks after 5 failures
 -- in 15 minutes (sleep 2s + return false), and sleeps 1s on each failure.
--- Used by the kitchen and checkout dashboards to unlock staff screens.
+-- Successful attempts are not logged (saves ~95% writes). Used by kitchen/checkout.
 -- ---------------------------------------------------------------------------
 create or replace function verify_kitchen_pin(p_pin text)
 returns boolean
@@ -317,18 +325,18 @@ begin
 
   v_is_valid := (p_pin = (select value from public.app_config where key = 'kitchen_pin'));
 
-  insert into public.pin_attempts(ip, success) values (v_ip, v_is_valid);
-
   if v_is_valid then
     return true;
   end if;
 
+  insert into public.pin_attempts(ip, success) values (v_ip, false);
   perform pg_sleep(1 + least(v_fail_count, 3)); -- 1-4s progressive
   return false;
 end;
 $$;
 
--- Central PIN throttle helper: logs attempt, blocks after 5 fails/15min, sleeps on fail.
+-- Central PIN throttle helper: logs FAILED attempts only, blocks after 5 fails/15min, sleeps on fail.
+-- Successes are not logged to cut writes.
 create or replace function public.require_valid_pin(p_pin text)
 returns void
 language plpgsql
@@ -348,8 +356,8 @@ begin
     raise exception 'Too many attempts. Try again later.' using errcode = '45000';
   end if;
   v_valid := (p_pin = (select value from public.app_config where key = 'kitchen_pin'));
-  insert into public.pin_attempts(ip, success) values (v_ip, v_valid);
   if not v_valid then
+    insert into public.pin_attempts(ip, success) values (v_ip, false);
     perform pg_sleep(1 + least(v_fail_count, 3));
     raise exception 'Invalid PIN';
   end if;

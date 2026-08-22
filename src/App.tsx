@@ -35,14 +35,15 @@ export default function App() {
   // the menu in view-only mode.
   const { canOrder, tableNumber, token, resolving, tokenInvalid, expired } = useTableSession()
 
-  // Use React Query for menu fetching with deduplication & caching
-  // staleTime 30s so kitchen availability toggles appear quickly without hard reload
+  // Storefront anon bypasses Supabase entirely (R2 CDN). 120s stale + no focus refetch
+  // cuts ~75% menu.json fetches under heavy traffic; kitchen publishes via POST /r2/export-menu
+  // and storefront invalidates via window event (publishMenuJson) instead of polling.
   const { data: menuData, error: menuError, isLoading } = useQuery({
     queryKey: [...queryKeys.menu, lang],
     queryFn: () => fetchMenu({ lang }),
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
+    staleTime: 120 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   })
 

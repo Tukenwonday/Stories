@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowLeft, Clock, Lock, RefreshCw, X, CheckCircle2, Circle } from "lucide-react"
 import type { TableSummary } from "../lib/supabase"
 import { supabase, verifyKitchenPin, fetchTablesSummary, fetchTableOrdersPage, fetchOrderDetail, markOrderPaid, queryKeys } from "../lib/supabase"
@@ -49,6 +49,11 @@ export default function Checkout() {
 
   const [localError, setLocalError] = useState<string | null>(null)
   const [channelError, setChannelError] = useState(false)
+  // Refs to avoid recreating Realtime channel on every view/table switch (cuts handshake egress)
+  const viewRef = useRef(view)
+  const selectedTableRef = useRef(selectedTable)
+  useEffect(() => { viewRef.current = view }, [view])
+  useEffect(() => { selectedTableRef.current = selectedTable }, [selectedTable])
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -76,18 +81,19 @@ export default function Checkout() {
 
   const queryClient = useQueryClient()
 
-  // Phase 6: TanStack Query for caching/dedup — dashboard summary 15s stale, detail 15s
+  // Checkout staff: keep 30s stale (was 15s) to halve get_tables_summary egress under heavy checkout traffic
+  // gc 5m prevents eviction churn when toggling dashboard/detail
   const tablesQuery = useQuery({
     queryKey: queryKeys.tablesSummary,
     queryFn: fetchTablesSummary,
     enabled: authed && view === "dashboard",
-    staleTime: 15_000,
-    gcTime: 2 * 60 * 1000,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   })
 
-  // Phase 2: paginated slim history — 30 newest, cursor (created_at,id), no items
+  // Paginated slim history — 30 newest, cursor (created_at,id), no items. 30s stale (was 15s)
   const ordersInfiniteQuery = useInfiniteQuery({
     queryKey: queryKeys.tableOrders(selectedTable ?? "__none__"),
     queryFn: ({ pageParam }: { pageParam?: { created_at: string; id: string } }) =>
@@ -99,7 +105,7 @@ export default function Checkout() {
       return { created_at: last.created_at, id: last.id }
     },
     enabled: authed && view === "detail" && !!selectedTable,
-    staleTime: 15_000,
+    staleTime: 30_000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
@@ -175,7 +181,7 @@ export default function Checkout() {
     else if (selectedTable) invalidateDetail(selectedTable)
   }, [view, selectedTable, invalidateDashboard, invalidateDetail])
 
-  // Phase 7: Targeted realtime — only invalidate affected view/table, debounced 800ms
+  // Targeted realtime: single channel per tab, debounce invalidates, never duplicate SUBSCRIBED fetch
   useEffect(() => {
     if (!authed || !supabase) return
     const client = supabase
@@ -183,8 +189,15 @@ export default function Checkout() {
     const debouncedInvalidate = (tableNumber?: string) => {
       if (reloadDebounceRef.current) clearTimeout(reloadDebounceRef.current)
       reloadDebounceRef.current = setTimeout(() => {
-        if (view === "dashboard") invalidateDashboard()
-        else if (view === "detail" && tableNumber && tableNumber === selectedTable) invalidateDetail(tableNumber)
+        const v = viewRef.current
+        const st = selectedTableRef.current
+        if (v === "dashboard") invalidateDashboard()
+        else if (v === "detail" && tableNumber && tableNumber === st) {
+          invalidateDetail(tableNumber)
+          invalidateDashboard()
+        } else if (v === "detail" && !tableNumber) {
+          invalidateDashboard()
+        }
       }, 800)
     }
     const channel = client
@@ -193,44 +206,48 @@ export default function Checkout() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders", filter: "paid=eq.false" },
         (payload) => {
+          const v = viewRef.current
+          const st = selectedTableRef.current
           const tn = (payload.new as any)?.table_number
-          if (view === "detail" && selectedTable && tn === selectedTable) {
-            debouncedInvalidate(tn)
-          } else if (view === "dashboard") {
-            debouncedInvalidate(tn)
-          }
-          // Also invalidate dashboard even from detail, since counts change
-          if (view === "detail") invalidateDashboard()
+          if (v === "detail" && st && tn === st) debouncedInvalidate(tn)
+          else if (v === "dashboard") debouncedInvalidate(tn)
+          else if (v === "detail") debouncedInvalidate()
         }
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "orders" },
         (payload) => {
+          const v = viewRef.current
+          const st = selectedTableRef.current
           const tn = (payload.old as any)?.table_number
-          if (view === "detail" && selectedTable && tn === selectedTable) {
-            debouncedInvalidate(tn)
-          } else if (view === "dashboard") {
-            debouncedInvalidate(tn)
-          }
-          if (view === "detail") invalidateDashboard()
+          if (v === "detail" && st && tn === st) debouncedInvalidate(tn)
+          else if (v === "dashboard") debouncedInvalidate(tn)
+          else if (v === "detail") debouncedInvalidate()
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: "paid=eq.true" },
+        (payload) => {
+          const v = viewRef.current
+          const st = selectedTableRef.current
+          const tn = (payload.new as any)?.table_number ?? (payload.old as any)?.table_number
+          if (v === "dashboard") debouncedInvalidate(tn)
+          else if (v === "detail" && tn === st) debouncedInvalidate(tn)
+          else if (v === "detail") debouncedInvalidate()
         }
       )
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          setChannelError(false)
-          // Initial load handled by useQuery enabled, but force refresh on (re)subscribe
-          reloadCurrentView()
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          setChannelError(true)
-        }
+        if (status === "SUBSCRIBED") setChannelError(false)
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") setChannelError(true)
       })
 
     return () => {
       client.removeChannel(channel)
       if (reloadDebounceRef.current) clearTimeout(reloadDebounceRef.current)
     }
-  }, [authed, view, selectedTable, invalidateDashboard, invalidateDetail, reloadCurrentView])
+  }, [authed, invalidateDashboard, invalidateDetail])
 
   useEffect(() => {
     if (!authed) return
