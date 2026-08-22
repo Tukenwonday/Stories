@@ -456,7 +456,8 @@ begin
       raise exception 'Quantity must be 1-99';
     end if;
 
-    select * into v_menu from public.menu where id = v_item->>'itemId';
+    select id, price, title_en, title_ar, modifiers, not_served_windows, is_available, unavailable_dates
+      into v_menu from public.menu where id = v_item->>'itemId';
     if v_menu.id is null then
       raise exception 'Item not found: %', v_item->>'itemId';
     end if;
@@ -760,7 +761,7 @@ begin
   return query
     select o.id, o.created_at, o.table_number, o.customer_name, o.notes, o.items, o.total, o.paid
     from public.orders o
-    where o.paid = false
+    where o.paid = false and o.created_at > now() - interval '14 days'
     order by o.created_at desc, o.id desc
     limit least(greatest(p_limit, 1), 100);
 end;

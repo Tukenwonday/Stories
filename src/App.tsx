@@ -44,7 +44,7 @@ export default function App() {
     staleTime: 120 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
+    refetchOnReconnect: false,
   })
 
   useEffect(() => {

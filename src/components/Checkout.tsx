@@ -90,10 +90,10 @@ export default function Checkout() {
     staleTime: 30_000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
+    refetchOnReconnect: false,
   })
 
-  // Paginated slim history — 30 newest, cursor (created_at,id), no items. 30s stale (was 15s)
+  // Paginated slim history — 30 newest, cursor (created_at,id), no items. 30s stale
   const ordersInfiniteQuery = useInfiniteQuery({
     queryKey: queryKeys.tableOrders(selectedTable ?? "__none__"),
     queryFn: ({ pageParam }: { pageParam?: { created_at: string; id: string } }) =>
@@ -108,7 +108,7 @@ export default function Checkout() {
     staleTime: 30_000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
+    refetchOnReconnect: false,
   })
 
   // Flatten pages with dedup by id (avoids duplicates when Realtime inserts while paginated)
@@ -172,14 +172,15 @@ export default function Checkout() {
     queryClient.invalidateQueries({ queryKey: queryKeys.tablesSummary })
   }, [queryClient])
   const invalidateDetail = useCallback((tableNumber?: string) => {
-    const tn = tableNumber ?? selectedTable
+    const tn = tableNumber ?? selectedTableRef.current
     if (tn) queryClient.invalidateQueries({ queryKey: queryKeys.tableOrders(tn) })
-  }, [queryClient, selectedTable])
+  }, [queryClient])
 
   const reloadCurrentView = useCallback(() => {
-    if (view === "dashboard") invalidateDashboard()
-    else if (selectedTable) invalidateDetail(selectedTable)
-  }, [view, selectedTable, invalidateDashboard, invalidateDetail])
+    const v = viewRef.current
+    if (v === "dashboard") invalidateDashboard()
+    else invalidateDetail()
+  }, [invalidateDashboard, invalidateDetail])
 
   // Targeted realtime: single channel per tab, debounce invalidates, never duplicate SUBSCRIBED fetch
   useEffect(() => {
@@ -209,18 +210,6 @@ export default function Checkout() {
           const v = viewRef.current
           const st = selectedTableRef.current
           const tn = (payload.new as any)?.table_number
-          if (v === "detail" && st && tn === st) debouncedInvalidate(tn)
-          else if (v === "dashboard") debouncedInvalidate(tn)
-          else if (v === "detail") debouncedInvalidate()
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "orders" },
-        (payload) => {
-          const v = viewRef.current
-          const st = selectedTableRef.current
-          const tn = (payload.old as any)?.table_number
           if (v === "detail" && st && tn === st) debouncedInvalidate(tn)
           else if (v === "dashboard") debouncedInvalidate(tn)
           else if (v === "detail") debouncedInvalidate()

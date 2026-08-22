@@ -260,7 +260,7 @@ async function fetchCategories(){
   const {url, anon} = getCfg();
   catStatus.textContent="LOADING...";
   try{
-    const res = await fetch(`${url}/rest/v1/categories?select=id,label_en,label_ar&order=sort_order.asc`,{
+    const res = await fetch(`${url}/rest/v1/categories?select=id,label_en,label_ar&order=sort_order.asc&limit=1000`,{
       headers:{apikey: anon, Authorization:`Bearer ${anon}`}
     });
     if(!res.ok) throw new Error(await res.text());
@@ -300,7 +300,7 @@ async function selectCategory(catId){
   const {url, anon} = getCfg();
   try{
     const q = encodeURIComponent(catId);
-    const res = await fetch(`${url}/rest/v1/menu?select=id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates&category=eq.${q}`,{
+    const res = await fetch(`${url}/rest/v1/menu?select=id,category,title_en,title_ar,description_en,description_ar,price,image,tag_en,tag_ar,modifiers,not_served_windows,is_available,unavailable_dates&category=eq.${q}&limit=1000`,{
       headers:{apikey: anon, Authorization:`Bearer ${anon}`}
     });
     if(!res.ok) throw new Error(await res.text());

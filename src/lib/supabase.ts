@@ -352,7 +352,7 @@ export async function fetchMenu(options: FetchMenuOptions = false): Promise<Menu
     .select(menuColumns)
     .order("created_at", { ascending: true })
     .order("id", { ascending: true })
-    .limit(200)
+    .limit(500)
   if (!includeUnavailable) {
     menuQuery.eq("is_available", true)
   }
@@ -361,7 +361,8 @@ export async function fetchMenu(options: FetchMenuOptions = false): Promise<Menu
     supabase
       .from("categories")
       .select(categoryColumns)
-      .order("sort_order", { ascending: true }),
+      .order("sort_order", { ascending: true })
+      .limit(100),
     menuQuery,
   ])
 
@@ -885,6 +886,7 @@ export async function fetchKitchenOrders(limit = 30): Promise<any[]> {
     .from("orders")
     .select("id, created_at, table_number, customer_name, notes, items, total, paid")
     .eq("paid", false)
+    .gt("created_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(Math.min(Math.max(limit, 1), 100))
